@@ -9,44 +9,59 @@
     "type": "git",
     "url": "https://github.com/databricks-solutions/lakebase-scm-workflows"
   },
-  "main": "./dist/scripts/index.js",
+  "main": "./dist/scripts/index.cjs",
+  "module": "./dist/scripts/index.js",
   "types": "./dist/scripts/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/scripts/index.d.ts",
-      "default": "./dist/scripts/index.js"
+      "import": {
+        "types": "./dist/scripts/index.d.ts",
+        "default": "./dist/scripts/index.js"
+      },
+      "require": {
+        "types": "./dist/scripts/index.d.cts",
+        "default": "./dist/scripts/index.cjs"
+      }
     },
     "./github": {
-      "types": "./dist/scripts/github/index.d.ts",
-      "default": "./dist/scripts/github/index.js"
+      "import": {
+        "types": "./dist/scripts/github/index.d.ts",
+        "default": "./dist/scripts/github/index.js"
+      },
+      "require": {
+        "types": "./dist/scripts/github/index.d.cts",
+        "default": "./dist/scripts/github/index.cjs"
+      }
     },
     "./lakebase": {
-      "types": "./dist/scripts/lakebase/index.d.ts",
-      "default": "./dist/scripts/lakebase/index.js"
+      "import": {
+        "types": "./dist/scripts/lakebase/index.d.ts",
+        "default": "./dist/scripts/lakebase/index.js"
+      },
+      "require": {
+        "types": "./dist/scripts/lakebase/index.d.cts",
+        "default": "./dist/scripts/lakebase/index.cjs"
+      }
     },
     "./git": {
-      "types": "./dist/scripts/git/index.d.ts",
-      "default": "./dist/scripts/git/index.js"
+      "import": {
+        "types": "./dist/scripts/git/index.d.ts",
+        "default": "./dist/scripts/git/index.js"
+      },
+      "require": {
+        "types": "./dist/scripts/git/index.d.cts",
+        "default": "./dist/scripts/git/index.cjs"
+      }
     },
     "./util": {
-      "types": "./dist/scripts/util/index.d.ts",
-      "default": "./dist/scripts/util/index.js"
-    },
-    "./lakebase/*": {
-      "types": "./dist/scripts/lakebase/*.d.ts",
-      "default": "./dist/scripts/lakebase/*.js"
-    },
-    "./github/*": {
-      "types": "./dist/scripts/github/*.d.ts",
-      "default": "./dist/scripts/github/*.js"
-    },
-    "./git/*": {
-      "types": "./dist/scripts/git/*.d.ts",
-      "default": "./dist/scripts/git/*.js"
-    },
-    "./util/*": {
-      "types": "./dist/scripts/util/*.d.ts",
-      "default": "./dist/scripts/util/*.js"
+      "import": {
+        "types": "./dist/scripts/util/index.d.ts",
+        "default": "./dist/scripts/util/index.js"
+      },
+      "require": {
+        "types": "./dist/scripts/util/index.d.cts",
+        "default": "./dist/scripts/util/index.cjs"
+      }
     }
   },
   "bin": {
@@ -56,7 +71,7 @@
     "lakebase-create-project": "./dist/scripts/lakebase/create-project.cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -76,6 +91,7 @@
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^22.10.0",
     "@types/tar": "^6.1.13",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
