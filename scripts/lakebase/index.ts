@@ -9,6 +9,7 @@ export * from "./branch-create.js";
 export * from "./branch-delete.js";
 export * from "./branch-endpoint.js";
 export * from "./branch-schema.js";
+export * from "./paired-branch.js";
 export * from "./branch-utils.js";
 export { createProject } from "./create-project.js";
 export * from "./env-file.js";

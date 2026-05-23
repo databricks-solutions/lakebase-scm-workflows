@@ -1,7 +1,7 @@
 ---
 name: lakebase-scm-workflows
 description: "Opinionated git-Lakebase branch-pairing workflows. Use when scaffolding a Lakebase-paired project, creating/deleting Lakebase branches in lockstep with git branches, diffing parent-aware schemas, opening or merging PRs that touch Lakebase, or running the same operations the lakebase-scm-extension exposes in VS Code."
-compatibility: Requires databricks CLI (>= v0.294.0) and @databricks-solutions/lakebase-scm-workflow-scripts
+compatibility: Requires databricks CLI (>= v0.294.0), git (>= 2.30), Node.js (>= 20), and @databricks-solutions/lakebase-scm-workflow-scripts
 metadata:
   version: "0.1.0"
 parent: databricks-lakebase
