@@ -1,0 +1,10 @@
+{
+  "name": "lakebase-scm-workflows",
+  "displayName": "Lakebase SCM Workflows",
+  "description": "Opinionated git-Lakebase branch-pairing workflows: project bootstrap, branch lifecycle, schema diff, PR flow.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Databricks"
+  },
+  "skills": "./skills/"
+}

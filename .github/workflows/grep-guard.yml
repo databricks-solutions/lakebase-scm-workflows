@@ -33,7 +33,7 @@ jobs:
               --exclude-dir=templates \
               . \
             | grep -v 'scripts/lakebase/get-connection.ts' \
-            | grep -v 'docs/get-connection.md' \
+            | grep -v 'skills/lakebase-scm-workflows/references/get-connection.md' \
             || true
           )
           if [ -n "$matches" ]; then

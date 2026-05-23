@@ -13,8 +13,8 @@ Opinionated git-Lakebase branch-pairing workflows. The shared executable surface
 
 Two narrow auth seams, both enforced by CI grep guards:
 
-- **`scripts/lakebase/get-connection.ts`** is the only path that mints Lakebase credentials. Every other workflow op calls `getConnection()`. See [docs/get-connection.md](docs/get-connection.md).
-- **`scripts/github/auth.ts`** is the only path that resolves a GitHub token. Fallback chain: `GITHUB_TOKEN` env → VS Code `getSession` (in the extension host only) → `gh auth token`. See [docs/github-auth.md](docs/github-auth.md).
+- **`scripts/lakebase/get-connection.ts`** is the only path that mints Lakebase credentials. Every other workflow op calls `getConnection()`. See [skills/lakebase-scm-workflows/references/get-connection.md](skills/lakebase-scm-workflows/references/get-connection.md).
+- **`scripts/github/auth.ts`** is the only path that resolves a GitHub token. Fallback chain: `GITHUB_TOKEN` env → VS Code `getSession` (in the extension host only) → `gh auth token`. See [skills/lakebase-scm-workflows/references/github-auth.md](skills/lakebase-scm-workflows/references/github-auth.md).
 
 Drift across call sites is what produced the gh-token / VS Code session / PAT inconsistency we just unified. The grep guards keep it unified.
 

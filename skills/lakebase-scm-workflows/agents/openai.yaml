@@ -1,0 +1,7 @@
+interface:
+  display_name: "Lakebase SCM Workflows"
+  short_description: "Git-Lakebase branch-pairing workflows"
+  icon_small: "./assets/databricks.svg"
+  icon_large: "./assets/databricks.png"
+  brand_color: "#FF3621"
+  default_prompt: "Use $lakebase-scm-workflows for Lakebase-paired git workflows: project bootstrap, branch lifecycle, schema diff, PR flow."

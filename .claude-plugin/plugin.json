@@ -1,0 +1,11 @@
+{
+  "name": "lakebase-scm-workflows",
+  "description": "Opinionated git-Lakebase branch-pairing workflows: project bootstrap, branch lifecycle, schema diff, PR flow. Same canonical operations the lakebase-scm-extension exposes in VS Code.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Databricks"
+  },
+  "repository": "https://github.com/databricks-solutions/lakebase-scm-workflows",
+  "keywords": ["databricks", "lakebase", "postgres", "git-workflow", "schema-diff", "branching", "data-engineering"],
+  "skills": "./skills/"
+}

@@ -47,7 +47,7 @@ jobs:
                 . \
               | grep -v 'scripts/github/auth.ts' \
               | grep -v 'scripts/github/auth.cli.ts' \
-              | grep -v 'docs/github-auth.md' \
+              | grep -v 'skills/lakebase-scm-workflows/references/github-auth.md' \
               || true
             )
             if [ -n "$matches" ]; then
