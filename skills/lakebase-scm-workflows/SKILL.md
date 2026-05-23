@@ -138,7 +138,8 @@ Each operation is a CLI bin invocation that returns JSON on stdout. JS callers c
 - `get-endpoint` / `ensure-endpoint` / `get-credential` — branch endpoint + raw token/email
 - `query-branch-schema` / `query-branch-tables` — live pg introspection
 - `get-project-info` — project metadata (uid, display name, state)
-- `pr-create` / `pr-update` / `pr-merge` — PR flow (TODO — FEIP-7076)
+- `create-pull-request` / `get-pull-request` / `merge-pull-request` / `merge-paired-pull-request` — PR flow (FEIP-7076)
+- `get-pull-request-reviews` / `get-pull-request-files` / `get-pull-request-comments` / `list-issue-comments` / `list-workflow-runs` — PR introspection
 
 ## branch lifecycle
 

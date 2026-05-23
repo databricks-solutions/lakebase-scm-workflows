@@ -10,3 +10,4 @@ export * from "./auth.js";
 export * from "./repo.js";
 export * from "./runner.js";
 export * from "./secrets.js";
+export * from "./pr.js";
