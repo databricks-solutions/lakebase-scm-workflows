@@ -1,0 +1,13 @@
+{
+  "name": "@databricks-solutions/lakebase-scm-workflows-dev-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sample Lakebase-paired project used as the target for BDD equivalence scenarios. Mirrors the AppKit playground.",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "@databricks-solutions/lakebase-scm-workflow-scripts": "file:../.."
+  }
+}

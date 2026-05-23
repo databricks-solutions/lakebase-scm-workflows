@@ -1,0 +1,92 @@
+# Weekly cleanup of orphaned Lakebase CI branches.
+# Compares ci-pr-* branches against open PRs and deletes any whose PRs are closed/merged.
+# Safety net for when merge.yml cleanup fails or direct pushes skip it.
+#
+# Branches with TTL will auto-expire, but this catches any that were created
+# before the TTL change (no_expiry: true) or where TTL was set incorrectly.
+name: Cleanup Orphaned Branches
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 6:00 UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate Databricks
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
+            echo "::warning::Missing DATABRICKS_HOST or DATABRICKS_TOKEN. Skipping cleanup."
+            exit 0
+          fi
+          export DATABRICKS_HOST DATABRICKS_TOKEN
+          if ! databricks current-user me -o json >/dev/null 2>&1; then
+            echo "::error::Databricks authentication failed. Push from local to refresh token."
+            exit 1
+          fi
+
+      - name: Find and delete orphaned CI branches
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$LAKEBASE_PROJECT_ID" ]; then
+            echo "::warning::LAKEBASE_PROJECT_ID not set. Skipping."
+            exit 0
+          fi
+          PROJ_PATH="projects/${LAKEBASE_PROJECT_ID}"
+
+          # List all Lakebase branches
+          LIST_RAW="$(databricks postgres list-branches "$PROJ_PATH" -o json 2>&1)"
+          BRANCHES="$(echo "$LIST_RAW" | jq -c 'if type == "array" then . elif type == "object" then (.branches // .items // []) else [] end' 2>/dev/null)" || BRANCHES="[]"
+
+          # Extract ci-pr-* branch names
+          CI_BRANCHES="$(echo "$BRANCHES" | jq -r '.[].name // empty' | grep 'ci-pr-' || true)"
+
+          if [ -z "$CI_BRANCHES" ]; then
+            echo "No ci-pr-* branches found. Nothing to clean up."
+            exit 0
+          fi
+
+          # Get open PR numbers
+          OPEN_PRS="$(gh pr list --state open --json number --jq '.[].number' 2>/dev/null)" || OPEN_PRS=""
+
+          DELETED=0
+          KEPT=0
+
+          echo "$CI_BRANCHES" | while read -r BRANCH_PATH; do
+            # Extract PR number from branch name (e.g., .../branches/ci-pr-7 -> 7)
+            BRANCH_ID="$(echo "$BRANCH_PATH" | sed 's|.*/branches/||')"
+            PR_NUM="$(echo "$BRANCH_ID" | sed 's/ci-pr-//')"
+
+            # Check if PR is still open
+            if echo "$OPEN_PRS" | grep -qx "$PR_NUM" 2>/dev/null; then
+              echo "KEEP: $BRANCH_ID (PR #$PR_NUM is open)"
+              KEPT=$((KEPT + 1))
+            else
+              echo "DELETE: $BRANCH_ID (PR #$PR_NUM is closed/merged)"
+              if databricks postgres delete-branch "$BRANCH_PATH" 2>&1; then
+                DELETED=$((DELETED + 1))
+              else
+                echo "::warning::Failed to delete $BRANCH_PATH"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "### Orphan Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Deleted: $DELETED orphaned ci-pr-* branches" >> $GITHUB_STEP_SUMMARY
+          echo "- Kept: $KEPT branches with open PRs" >> $GITHUB_STEP_SUMMARY

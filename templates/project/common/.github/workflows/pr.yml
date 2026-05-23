@@ -1,0 +1,595 @@
+# CI/CD on PR: create Lakebase branch ci-pr-<N> (N = PR number), build, run migrations, run tests.
+# - Branch names stay in sync: one Lakebase branch per PR, named ci-pr-<PR_number>.
+# - Language-aware: detects Java/Flyway, Python/Alembic, or Node.js/Knex from marker files.
+# - On failure: post comment on PR to notify the committer (and GitHub shows failed check).
+# - On success: post comment on PR and optionally notify tester queue via webhook (set TESTER_QUEUE_WEBHOOK_URL).
+name: PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+    outputs:
+      ci_branch_used: ${{ steps.datasource.outputs.ci_branch_used }}
+      schema_diff_b64: ${{ steps.schema-diff-export.outputs.content }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect project language
+        id: detect-lang
+        run: |
+          # Use git ls-files to check tracked marker files (avoids stale files on self-hosted runners)
+          if git ls-files --error-unmatch pom.xml >/dev/null 2>&1; then
+            echo "lang=java" >> $GITHUB_OUTPUT
+          elif git ls-files --error-unmatch pyproject.toml >/dev/null 2>&1 || git ls-files --error-unmatch requirements.txt >/dev/null 2>&1; then
+            echo "lang=python" >> $GITHUB_OUTPUT
+          elif git ls-files --error-unmatch package.json >/dev/null 2>&1; then
+            echo "lang=nodejs" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Cannot detect project language. Expected pom.xml, pyproject.toml, or package.json in repo root."
+            exit 1
+          fi
+          echo "Detected language: $(cat $GITHUB_OUTPUT | grep lang | cut -d= -f2)"
+
+      - name: Set up JDK
+        if: steps.detect-lang.outputs.lang == 'java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Set Java env vars
+        if: steps.detect-lang.outputs.lang == 'java'
+        run: echo "MAVEN_OPTS=--enable-native-access=ALL-UNNAMED" >> $GITHUB_ENV
+
+      - name: Set up Python + uv
+        if: steps.detect-lang.outputs.lang == 'python'
+        run: |
+          if command -v uv >/dev/null 2>&1; then
+            echo "uv already on PATH"; uv --version
+          elif command -v pip >/dev/null 2>&1; then
+            pip install uv
+          else
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            export PATH="$HOME/.local/bin:$PATH"
+            echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+          fi
+          uv sync --all-extras
+
+      - name: Set up Node.js
+        if: steps.detect-lang.outputs.lang == 'nodejs'
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            echo "Node.js already on PATH"; node --version
+          fi
+          npm install
+
+      # Install frontend dependencies when a `client/` workspace is present
+      # (Python+React layouts etc.). Gated on client/package.json so projects
+      # without a frontend skip this transparently.
+      - name: Install client dependencies
+        if: hashFiles('client/package.json') != ''
+        working-directory: client
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            echo "Node.js already on PATH"; node --version
+          fi
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # The official action installs to a user-writable path (no sudo). It's
+      # a no-op if a compatible databricks CLI is already on PATH.
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      # Creates Lakebase branch ci-pr-<N> forked from the PR's BASE git branch
+      # (the natural parent for the PR). This handles both tiers correctly:
+      #   - feature → staging PR: forks from staging (test feature deltas on staging)
+      #   - staging → main PR: forks from main / default (test staging deltas on prod)
+      # Two-tier safe. Delegates to scripts/ci/resolve-lakebase-branch.sh.
+      - name: Create CI database branch (Lakebase)
+        id: lakebase-db
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST || '' }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN || '' }}
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID || '' }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_REPO_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          export DATABRICKS_HOST DATABRICKS_TOKEN
+          PR="${{ github.event.pull_request.number }}"
+          CI_BRANCH_NAME="ci-pr-${PR}"
+          echo "branch=${CI_BRANCH_NAME}" >> $GITHUB_OUTPUT
+
+          write_skip() {
+            echo "## Lakebase CI branch: not created" >> $GITHUB_STEP_SUMMARY
+            echo "$1" >> $GITHUB_STEP_SUMMARY
+            echo "url=" >> $GITHUB_OUTPUT
+            echo "username=" >> $GITHUB_OUTPUT
+            echo "password=" >> $GITHUB_OUTPUT
+          }
+
+          echo "Lakebase CI branch setup:"
+          echo "  PR base.ref (CI fork parent): ${PR_BASE_REF}"
+          echo "  CI branch: ${CI_BRANCH_NAME}"
+          echo "  PR from fork: ${PR_HEAD_REPO_FORK}"
+          echo "  DATABRICKS_HOST: $([ -n "$DATABRICKS_HOST" ] && echo 'set' || echo 'NOT SET')"
+          echo "  DATABRICKS_TOKEN: $([ -n "$DATABRICKS_TOKEN" ] && echo 'set' || echo 'NOT SET')"
+          echo "  LAKEBASE_PROJECT_ID: $([ -n "$LAKEBASE_PROJECT_ID" ] && echo 'set' || echo 'NOT SET')"
+
+          # Preflight — bail cleanly with an actionable summary if we can't proceed
+          if [ "$PR_HEAD_REPO_FORK" = "true" ]; then
+            write_skip "**Reason:** PR is from a fork. GitHub does not pass repo secrets to fork PRs. **Fix:** Push your branch to this repo and open the PR from here."
+            exit 0
+          fi
+          if ! command -v databricks >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+            write_skip "**Reason:** \`databricks\` CLI or \`jq\` not found on runner."
+            exit 0
+          fi
+          if [ -z "$LAKEBASE_PROJECT_ID" ] || [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
+            write_skip "**Reason:** Missing secrets (DATABRICKS_HOST, DATABRICKS_TOKEN, LAKEBASE_PROJECT_ID). **Fix:** Add them in repo Settings → Secrets."
+            exit 0
+          fi
+          if ! databricks current-user me -o json >/dev/null 2>&1; then
+            write_skip "**Reason:** Databricks authentication failed. Token may be expired."
+            exit 0
+          fi
+          if [ -z "$PR_BASE_REF" ]; then
+            write_skip "**Reason:** Could not determine PR base.ref (parent branch). The workflow must be triggered by a pull_request event."
+            exit 0
+          fi
+
+          # Resolve + create the CI branch forked from the PR's base.ref.
+          # --lakebase-name pins the name to ci-pr-<N> (skip the git→name mapping).
+          # --create-from <PR_BASE_REF> forks from the parent branch's Lakebase clone.
+          # --recreate-on-source-mismatch: if ci-pr-N already exists but was
+          # forked from a different parent (e.g. a prior run when base.ref was
+          # main, but now base.ref is staging), delete + re-fork from the
+          # correct parent. CI branches are disposable so this is always safe.
+          # --ensure-endpoint creates the primary endpoint if it doesn't exist.
+          #
+          # --github-env writes tokens/DATABASE_URL to $GITHUB_ENV (visible to
+          # subsequent steps) AND prints non-secret key='value' lines to stdout
+          # (captured + evaled below so they're visible IN THIS STEP too —
+          # $GITHUB_ENV writes don't take effect until the next step).
+          if ! HELPER_OUT="$(./scripts/ci/resolve-lakebase-branch.sh \
+                --lakebase-name "$CI_BRANCH_NAME" \
+                --create-from "$PR_BASE_REF" \
+                --recreate-on-source-mismatch \
+                --ensure-endpoint \
+                --github-env)"; then
+            write_skip "**Reason:** Could not create CI branch \`$CI_BRANCH_NAME\` forked from \`$PR_BASE_REF\`. Check the workflow log above."
+            exit 0
+          fi
+          eval "$HELPER_OUT"
+
+          # JDBC_URL, LAKEBASE_BRANCH_STATUS, LAKEBASE_BRANCH_SOURCE,
+          # LAKEBASE_USERNAME are now set in this shell. Mirror the critical
+          # ones to step outputs for downstream jobs + conditional steps.
+          # (Secrets stay in $GITHUB_ENV — downstream steps read them via
+          # env.DB_PASSWORD rather than step outputs.)
+          echo "url=${JDBC_URL}" >> $GITHUB_OUTPUT
+          echo "username=${LAKEBASE_USERNAME}" >> $GITHUB_OUTPUT
+
+          # Translate LAKEBASE_BRANCH_STATUS into a truthful one-line log +
+          # summary table row. Never claim "forked from X" unless we actually
+          # forked (or verified the existing fork points at X).
+          case "$LAKEBASE_BRANCH_STATUS" in
+            CREATED)    ACTION="newly created, forked from Lakebase '$LAKEBASE_BRANCH_SOURCE' pair of git '$PR_BASE_REF'" ;;
+            RECREATED)  ACTION="existed with wrong source — deleted and re-forked from Lakebase '$LAKEBASE_BRANCH_SOURCE' pair of git '$PR_BASE_REF'" ;;
+            VERIFIED)   ACTION="already existed, source '$LAKEBASE_BRANCH_SOURCE' matches parent — reused" ;;
+            UNVERIFIED) ACTION="already existed but API did not report a source_branch — reused without verification" ;;
+            *)          ACTION="status=$LAKEBASE_BRANCH_STATUS (source=$LAKEBASE_BRANCH_SOURCE)" ;;
+          esac
+          echo "Lakebase: CI branch $CI_BRANCH_NAME ready — ${ACTION}."
+          {
+            echo "## Lakebase CI branch: $LAKEBASE_BRANCH_STATUS"
+            echo "| | |"
+            echo "|--|--|"
+            echo "| Branch | \`$CI_BRANCH_NAME\` |"
+            echo "| Status | \`$LAKEBASE_BRANCH_STATUS\` |"
+            echo "| Actual source | \`${LAKEBASE_BRANCH_SOURCE:-unknown}\` |"
+            echo "| PR base.ref (expected parent) | \`$PR_BASE_REF\` |"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Configure datasource for CI
+        id: datasource
+        run: |
+          # DATABASE_URL, DB_USERNAME, DB_PASSWORD, SPRING_DATASOURCE_* were
+          # already written to $GITHUB_ENV by resolve-lakebase-branch.sh in the
+          # previous step. Nothing to mirror here. This step exists only to
+          # emit `ci_branch_used` for the pr-comment job's condition.
+          if [ -n "${{ steps.lakebase-db.outputs.url }}" ]; then
+            echo "ci_branch_used=true" >> $GITHUB_OUTPUT
+            echo "Using CI branch URL"
+          else
+            echo "ci_branch_used=false" >> $GITHUB_OUTPUT
+            echo "No CI branch URL; tests may use default or fail."
+          fi
+
+      - name: Comment on PR (no Lakebase branch)
+        if: steps.lakebase-db.outputs.url == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="⚠️ **No Lakebase CI branch** was created. This run is not using a dedicated database branch. Open the [workflow run](${RUN_URL}), expand **Create CI database branch (Lakebase)** and check the step **Summary** (or log) for the reason and how to fix it."
+          gh pr comment "$PR" --body "$BODY" 2>/dev/null || true
+
+      - name: Install PostgreSQL client
+        if: steps.lakebase-db.outputs.url != ''
+        run: |
+          if command -v psql >/dev/null 2>&1; then
+            echo "psql already on PATH"; psql --version
+          elif command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          elif command -v brew >/dev/null 2>&1; then
+            brew install libpq
+            echo "PATH=$(brew --prefix libpq)/bin:$PATH" >> $GITHUB_ENV
+          else
+            echo "Could not install psql; repair step may be skipped."
+          fi
+
+      - name: Repair flyway_schema_history (remove bogus entries when objects missing)
+        id: flyway-repair
+        if: steps.detect-lang.outputs.lang == 'java' && steps.lakebase-db.outputs.url != ''
+        env:
+          FLYWAY_URL: ${{ steps.lakebase-db.outputs.url }}
+          FLYWAY_USER: ${{ env.DB_USERNAME }}
+          FLYWAY_PASS: ${{ env.DB_PASSWORD }}
+        run: |
+          set +e
+          if ! command -v psql >/dev/null 2>&1; then
+            echo "psql not found; skipping flyway_schema_history repair."
+            exit 0
+          fi
+          FLYWAY_PASS_TRIMMED="$(printf '%s' "$FLYWAY_PASS" | tr -d '\n')"
+          HOST="$(echo "$FLYWAY_URL" | sed -n 's|.*://\([^:/]*\):.*|\1|p')"
+          DB="$(echo "$FLYWAY_URL" | sed -n 's|.*/\([^/?]*\).*|\1|p')"
+          if [ -z "$HOST" ] || [ -z "$DB" ]; then
+            echo "Could not parse JDBC URL; skipping repair."
+            exit 0
+          fi
+          export PGHOST="$HOST" PGPORT="5432" PGDATABASE="$DB" PGUSER="$FLYWAY_USER" PGPASSWORD="$FLYWAY_PASS_TRIMMED" PGSSLMODE=require
+          psql -c "SELECT 1 AS connected" 2>/dev/null || { echo "Connection failed; skipping repair."; unset PGPASSWORD PGHOST PGPORT PGDATABASE PGUSER PGSSLMODE; exit 0; }
+          FLYWAY_SCHEMA="$(psql -t -A -c "SELECT table_schema FROM information_schema.tables WHERE table_name = 'flyway_schema_history' LIMIT 1" 2>/dev/null | tr -d '\r\n')"
+          [ -z "$FLYWAY_SCHEMA" ] && FLYWAY_SCHEMA="public"
+          echo "flyway_schema_history schema: $FLYWAY_SCHEMA"
+          MIGRATION_DIR="src/main/resources/db/migration"
+          for f in "$MIGRATION_DIR"/V*.sql; do
+            [ -f "$f" ] || continue
+            version="$(basename "$f" | sed -n 's/^V\([0-9]*\)__.*/\1/p')"
+            [ -n "$version" ] || continue
+            tables="$(grep -oE 'CREATE TABLE (IF NOT EXISTS )?[a-zA-Z_][a-zA-Z0-9_]*' "$f" 2>/dev/null | awk '{print $NF}' | tr '[:upper:]' '[:lower:]' | sort -u)"
+            [ -n "$tables" ] || continue
+            missing=""
+            for t in $tables; do
+              [ -z "$t" ] && continue
+              exists="$(psql -t -A -c "SELECT 1 FROM information_schema.tables WHERE table_name = '$t'" 2>/dev/null | tr -d ' \r\n')"
+              [ -z "$exists" ] && missing="$missing $t"
+            done
+            if [ -n "$missing" ]; then
+              echo "Version $version: missing table(s):$missing; removing from flyway_schema_history."
+              psql -c "DELETE FROM \"$FLYWAY_SCHEMA\".flyway_schema_history WHERE version = '$version'" 2>/dev/null || true
+            fi
+          done
+          unset PGPASSWORD PGHOST PGPORT PGDATABASE PGUSER PGSSLMODE
+          exit 0
+
+      - name: Run migrations (CI branch)
+        id: migrate-ci
+        if: steps.lakebase-db.outputs.url != ''
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DB_USERNAME: ${{ env.DB_USERNAME }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          LANG="${{ steps.detect-lang.outputs.lang }}"
+          if [ "$LANG" = "java" ]; then
+            echo "Migration files:"; ls -la src/main/resources/db/migration/ || true
+            PASS_TRIMMED="$(printf '%s' "$SPRING_DATASOURCE_PASSWORD" | tr -d '\n')"
+            echo "Running Flyway migrate on CI branch..."
+            ./mvnw -q flyway:migrate -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="$PASS_TRIMMED" -Dflyway.locations=filesystem:src/main/resources/db/migration
+            echo "Flyway info (after migrate):"
+            ./mvnw -q flyway:info -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="$PASS_TRIMMED" -Dflyway.locations=filesystem:src/main/resources/db/migration
+          elif [ "$LANG" = "python" ]; then
+            echo "Migration files:"; ls -la alembic/versions/ || true
+            echo "Running Alembic upgrade head on CI branch..."
+            uv run alembic upgrade head
+            echo "Alembic current:"; uv run alembic current || true
+          elif [ "$LANG" = "nodejs" ]; then
+            echo "Migration files:"; ls -la migrations/ || true
+            echo "Running Knex migrate:latest on CI branch..."
+            npx knex migrate:latest
+          fi
+          echo "Migrations completed."
+
+      - name: Run tests
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DB_USERNAME: ${{ env.DB_USERNAME }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          LANG="${{ steps.detect-lang.outputs.lang }}"
+          if [ -n "$DATABASE_URL" ]; then
+            echo "Running tests against CI branch."
+            if [ "$LANG" = "java" ]; then
+              ./mvnw -q test -Dspring.datasource.url="$SPRING_DATASOURCE_URL" -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME:-}" -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD:-}"
+            elif [ "$LANG" = "python" ]; then
+              uv run pytest
+            elif [ "$LANG" = "nodejs" ]; then
+              npm test
+            fi
+          else
+            echo "::error::No CI branch URL — cannot run tests without a database. Check the 'Create CI database branch' step for details."
+            exit 1
+          fi
+
+      # Playwright E2E tests run against the Vite dev server + backend.
+      # Only fires if a playwright config is checked in under client/, so
+      # projects without a browser loop skip these transparently. The
+      # schema-diff step that follows runs unconditionally.
+      #
+      # Note: the project's client/playwright.config.ts MUST boot BOTH the
+      # frontend (Vite/5173) AND the backend (uvicorn/8000 etc.) via the
+      # `webServer: []` array. A config that only starts Vite will hit
+      # `ECONNREFUSED` on every /api/* call. See
+      # templates/project/common/client-reference/playwright.config.ts for
+      # a full-stack reference.
+      - name: Install Playwright browsers
+        if: hashFiles('client/playwright.config.ts', 'client/playwright.config.js', 'client/playwright.config.mjs') != ''
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests (Playwright)
+        if: hashFiles('client/playwright.config.ts', 'client/playwright.config.js', 'client/playwright.config.mjs') != ''
+        working-directory: client
+        env:
+          # Backend booted by playwright's webServer uses these for SDK auth.
+          # Without them, the Python SDK's default auth chain falls through to
+          # the self-hosted runner's ~/.databrickscfg, which usually has an
+          # expired OAuth refresh token and surfaces as `refresh token is
+          # invalid` warnings at request time.
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: npx playwright test
+
+      - name: Install PostgreSQL client (for schema dump)
+        if: success() && steps.datasource.outputs.ci_branch_used == 'true'
+        run: |
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          elif command -v brew >/dev/null 2>&1; then
+            brew install libpq
+            echo "PATH=$(brew --prefix libpq)/bin:$PATH" >> $GITHUB_ENV
+          else
+            echo "Neither apt-get nor brew found; pg_dump may be missing for schema diff."
+          fi
+
+      - name: Schema diff (CI branch vs parent)
+        if: success() && steps.datasource.outputs.ci_branch_used == 'true'
+        id: schema-diff
+        env:
+          CI_JDBC_URL: ${{ steps.lakebase-db.outputs.url }}
+          CI_DB_USERNAME: ${{ env.DB_USERNAME }}
+          CI_DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST || '' }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN || '' }}
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID || '' }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -e
+          PR="${{ github.event.pull_request.number }}"
+          BRANCH="ci-pr-${PR}"
+          MD="schema-diff.md"
+          echo "## Schema (Lakebase branch \`${BRANCH}\`, forked from \`${PR_BASE_REF}\`)" > "$MD"
+          echo "" >> "$MD"
+          # Migrations applied on CI branch (from repo)
+          LANG="${{ steps.detect-lang.outputs.lang }}"
+          echo "### Migrations applied on this branch (CI)" >> "$MD"
+          echo "| Version | Migration |" >> "$MD"
+          echo "|---------|-----------|" >> "$MD"
+          if [ "$LANG" = "java" ]; then
+            for f in src/main/resources/db/migration/*.sql; do
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              ver=$(echo "$base" | sed -n 's/^V\([0-9]*\)__.*/\1/p')
+              desc=$(echo "$base" | sed -n 's/^V[0-9]*__\(.*\)\.sql$/\1/p' | tr '_' ' ')
+              [ -n "$ver" ] && echo "| V$ver | $desc |" >> "$MD"
+            done
+          elif [ "$LANG" = "python" ]; then
+            for f in alembic/versions/*.py; do
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              rev=$(echo "$base" | cut -d_ -f1)
+              desc=$(echo "$base" | sed 's/^[^_]*_//' | sed 's/\.py$//' | tr '_' ' ')
+              [ -n "$rev" ] && echo "| $rev | $desc |" >> "$MD"
+            done
+          elif [ "$LANG" = "nodejs" ]; then
+            for f in migrations/*.js; do
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              ver=$(echo "$base" | sed -n 's/^\([0-9]*\)_.*/\1/p')
+              desc=$(echo "$base" | sed 's/^[0-9]*_//' | sed 's/\.js$//' | tr '_' ' ')
+              [ -n "$ver" ] && echo "| $ver | $desc |" >> "$MD"
+            done
+          fi
+          echo "" >> "$MD"
+          # Obtain PARENT branch URL via the helper. PARENT = PR's base.ref (e.g.
+          # 'staging' for feature→staging PRs; 'main' for staging→main PRs).
+          # Schema diff compares CI branch against the parent's current schema so
+          # reviewers see only what this PR adds relative to where it'll merge.
+          PRODUCTION_DATASOURCE_URL=""
+          PRODUCTION_DATASOURCE_USERNAME=""
+          PRODUCTION_DATASOURCE_PASSWORD=""
+          if [ -n "$LAKEBASE_PROJECT_ID" ] && [ -n "$DATABRICKS_HOST" ] && [ -n "$DATABRICKS_TOKEN" ] && [ -n "$PR_BASE_REF" ]; then
+            PARENT_ENV="$(./scripts/ci/resolve-lakebase-branch.sh --git-branch "$PR_BASE_REF" 2>/dev/null || true)"
+            if [ -n "$PARENT_ENV" ]; then
+              eval "$PARENT_ENV"
+              PRODUCTION_DATASOURCE_URL="$JDBC_URL"
+              PRODUCTION_DATASOURCE_USERNAME="$LAKEBASE_USERNAME"
+              PRODUCTION_DATASOURCE_PASSWORD="$LAKEBASE_PASSWORD"
+              unset LAKEBASE_BRANCH_NAME LAKEBASE_BRANCH_PATH LAKEBASE_HOST \
+                    LAKEBASE_USERNAME LAKEBASE_PASSWORD DATABASE_URL JDBC_URL
+            fi
+          fi
+          # Parse JDBC URL to host, port, db (for pg_dump)
+          parse_jdbc() {
+            local url="$1"
+            local rest="${url#jdbc:postgresql://}"
+            local hostport="${rest%%/*}"
+            local path="${rest#*/}"
+            local db="${path%%\?*}"
+            local host="${hostport%:*}"
+            local port="${hostport##*:}"
+            [ "$port" = "$host" ] && port=5432
+            echo "$host|$port|$db"
+          }
+          # Schema diff from prod + CI schema SQL (format-schema-diff.sh), or fallback to migration version comparison
+          if [ -n "$PRODUCTION_DATASOURCE_URL" ] && command -v pg_dump >/dev/null 2>&1; then
+            PROD_HP=$(parse_jdbc "$PRODUCTION_DATASOURCE_URL")
+            CI_HP=$(parse_jdbc "$CI_JDBC_URL")
+            PROD_HOST=$(echo "$PROD_HP" | cut -d'|' -f1); PROD_PORT=$(echo "$PROD_HP" | cut -d'|' -f2); PROD_DB=$(echo "$PROD_HP" | cut -d'|' -f3)
+            CI_HOST=$(echo "$CI_HP" | cut -d'|' -f1); CI_PORT=$(echo "$CI_HP" | cut -d'|' -f2); CI_DB=$(echo "$CI_HP" | cut -d'|' -f3)
+            export PGSSLMODE=require
+            mkdir -p .tmp
+            # Unsorted schema so formatter can parse CREATE TABLE ... ( columns ); blocks (same as scripts/prepare-schema-diff.sh)
+            PROD_ERR=$(mktemp); CI_ERR=$(mktemp); trap "rm -f '$PROD_ERR' '$CI_ERR'" EXIT
+            PGPASSWORD="${PRODUCTION_DATASOURCE_PASSWORD:-}" pg_dump -h "$PROD_HOST" -p "$PROD_PORT" -U "${PRODUCTION_DATASOURCE_USERNAME:-}" -d "$PROD_DB" --schema-only --no-owner --no-privileges 2>"$PROD_ERR" | grep -v '^--' | grep -v '^$' > .tmp/prod-schema.sql || true
+            PGPASSWORD="${CI_DB_PASSWORD:-}" pg_dump -h "$CI_HOST" -p "$CI_PORT" -U "${CI_DB_USERNAME:-}" -d "$CI_DB" --schema-only --no-owner --no-privileges 2>"$CI_ERR" | grep -v '^--' | grep -v '^$' > .tmp/ci-schema.sql || true
+            if [ -s .tmp/prod-schema.sql ] && [ -s .tmp/ci-schema.sql ]; then
+              trap - EXIT; rm -f "$PROD_ERR" "$CI_ERR"
+              echo "### Schema diff: \`${BRANCH}\` vs parent (\`${PR_BASE_REF}\`)" >> "$MD"
+              echo "" >> "$MD"
+              bash scripts/format-schema-diff.sh .tmp/prod-schema.sql .tmp/ci-schema.sql >> "$MD" 2>/dev/null || true
+            else
+              echo "# pg_dump failed or empty; falling back to migration version comparison." >> "$MD"
+              if [ ! -s .tmp/prod-schema.sql ] && [ -s "$PROD_ERR" ]; then echo "# Production: $(head -1 "$PROD_ERR" 2>/dev/null)" >> "$MD"; fi
+              if [ ! -s .tmp/ci-schema.sql ] && [ -s "$CI_ERR" ]; then echo "# CI branch: $(head -1 "$CI_ERR" 2>/dev/null)" >> "$MD"; fi
+              [ ! -s .tmp/prod-schema.sql ] && echo "# Tip: ensure parent branch \`${PR_BASE_REF}\` exists in Lakebase and its endpoint is ACTIVE." >> "$MD"
+              [ ! -s .tmp/ci-schema.sql ] && echo "# Tip: CI branch credentials are generated in this run; transient failures can be retried." >> "$MD"
+              trap - EXIT; rm -f "$PROD_ERR" "$CI_ERR"
+              echo "pg_dump failed; falling back to table comparison via psql." >> "$MD"
+              # Compare tables directly via psql (language-independent)
+              if command -v psql >/dev/null 2>&1; then
+                CI_TABLES="$(PGPASSWORD="${CI_DB_PASSWORD:-}" psql "host=$CI_HOST port=$CI_PORT dbname=$CI_DB user=$CI_DB_USERNAME sslmode=require" -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename" 2>/dev/null || true)"
+                PROD_TABLES="$(PGPASSWORD="${PRODUCTION_DATASOURCE_PASSWORD:-}" psql "host=$PROD_HOST port=$PROD_PORT dbname=$PROD_DB user=$PRODUCTION_DATASOURCE_USERNAME sslmode=require" -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename" 2>/dev/null || true)"
+                for t in $CI_TABLES; do echo " $PROD_TABLES " | grep -q " $t " || echo "**New on this PR:** \`$t\`" >> "$MD"; done
+                for t in $PROD_TABLES; do echo " $CI_TABLES " | grep -q " $t " || echo "**Only on parent (\`${PR_BASE_REF}\`):** \`$t\`" >> "$MD"; done
+              fi
+            fi
+          elif [ -n "$PRODUCTION_DATASOURCE_URL" ]; then
+            echo "### Schema diff vs parent \`${PR_BASE_REF}\` (table comparison)" >> "$MD"
+            # Compare tables directly via psql (language-independent, no flyway:info needed)
+            PROD_HP=$(parse_jdbc "$PRODUCTION_DATASOURCE_URL")
+            CI_HP=$(parse_jdbc "$CI_JDBC_URL")
+            PROD_HOST=$(echo "$PROD_HP" | cut -d'|' -f1); PROD_PORT=$(echo "$PROD_HP" | cut -d'|' -f2); PROD_DB=$(echo "$PROD_HP" | cut -d'|' -f3)
+            CI_HOST=$(echo "$CI_HP" | cut -d'|' -f1); CI_PORT=$(echo "$CI_HP" | cut -d'|' -f2); CI_DB=$(echo "$CI_HP" | cut -d'|' -f3)
+            if command -v psql >/dev/null 2>&1; then
+              export PGSSLMODE=require
+              CI_TABLES="$(PGPASSWORD="${CI_DB_PASSWORD:-}" psql "host=$CI_HOST port=$CI_PORT dbname=$CI_DB user=$CI_DB_USERNAME sslmode=require" -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename" 2>/dev/null || true)"
+              PROD_TABLES="$(PGPASSWORD="${PRODUCTION_DATASOURCE_PASSWORD:-}" psql "host=$PROD_HOST port=$PROD_PORT dbname=$PROD_DB user=$PRODUCTION_DATASOURCE_USERNAME sslmode=require" -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename" 2>/dev/null || true)"
+              NEW_ON_CI=""; ONLY_PROD=""
+              for t in $CI_TABLES; do
+                [ "$t" = "flyway_schema_history" ] || [ "$t" = "alembic_version" ] || [ "$t" = "knex_migrations" ] || [ "$t" = "knex_migrations_lock" ] && continue
+                echo " $PROD_TABLES " | grep -q " $t " || NEW_ON_CI="$NEW_ON_CI \`$t\`"
+              done
+              for t in $PROD_TABLES; do
+                [ "$t" = "flyway_schema_history" ] || [ "$t" = "alembic_version" ] || [ "$t" = "knex_migrations" ] || [ "$t" = "knex_migrations_lock" ] && continue
+                echo " $CI_TABLES " | grep -q " $t " || ONLY_PROD="$ONLY_PROD \`$t\`"
+              done
+              [ -n "$NEW_ON_CI" ] && echo "**New on this PR:**$NEW_ON_CI" >> "$MD"
+              [ -n "$ONLY_PROD" ] && echo "**Only on parent (\`${PR_BASE_REF}\`):**$ONLY_PROD" >> "$MD"
+              [ -z "$NEW_ON_CI" ] && [ -z "$ONLY_PROD" ] && echo "**In sync:** CI and parent (\`${PR_BASE_REF}\`) have the same tables." >> "$MD"
+            else
+              echo "psql not available; cannot compare tables." >> "$MD"
+            fi
+          else
+            echo "### Schema diff vs parent \`${PR_BASE_REF}\`" >> "$MD"
+            echo "Parent branch URL could not be resolved from Lakebase. Check that the Lakebase branch paired with git \`${PR_BASE_REF}\` exists, and that \`LAKEBASE_PROJECT_ID\`, \`DATABRICKS_HOST\`, \`DATABRICKS_TOKEN\` are set." >> "$MD"
+          fi
+          cat "$MD" >> $GITHUB_STEP_SUMMARY
+          echo "path=$MD" >> $GITHUB_OUTPUT
+
+      # Pass schema diff via job output (no artifact upload — avoids storage quota)
+      - name: Export schema diff to output
+        id: schema-diff-export
+        if: success() && steps.datasource.outputs.ci_branch_used == 'true' && steps.schema-diff.outcome == 'success'
+        run: |
+          echo "content<<SCHEMA_DIFF_EOF" >> $GITHUB_OUTPUT
+          base64 < schema-diff.md >> $GITHUB_OUTPUT
+          echo "SCHEMA_DIFF_EOF" >> $GITHUB_OUTPUT
+
+  pr-comment:
+    runs-on: self-hosted
+    needs: build-and-test
+    if: success() && needs.build-and-test.result == 'success' && needs.build-and-test.outputs.ci_branch_used == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore schema diff
+        if: needs.build-and-test.outputs.schema_diff_b64 != ''
+        env:
+          SCHEMA_DIFF_B64: ${{ needs.build-and-test.outputs.schema_diff_b64 }}
+        run: echo "$SCHEMA_DIFF_B64" | (base64 -d 2>/dev/null || base64 -D) > schema-diff.md
+      - name: Comment on PR (success — ready for test)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          SCHEMA_FILE="schema-diff.md"
+          [ -f "schema-diff/schema-diff.md" ] && SCHEMA_FILE="schema-diff/schema-diff.md"
+          {
+            echo '✅ **CI passed.** Build and tests succeeded on Lakebase branch `ci-pr-'"$PR"'`. Ready for QA.'
+            if [ -f "$SCHEMA_FILE" ]; then
+              echo ''
+              echo '---'
+              cat "$SCHEMA_FILE"
+            fi
+          } > comment-body.md
+          gh pr comment "$PR" --body-file comment-body.md 2>/dev/null || true
+      - name: Notify tester queue (webhook)
+        env:
+          # Repository secret; linter may warn "Context access might be invalid" (false positive)
+          TESTER_QUEUE_WEBHOOK_URL: ${{ secrets.TESTER_QUEUE_WEBHOOK_URL || '' }}
+        run: |
+          if [ -z "$TESTER_QUEUE_WEBHOOK_URL" ]; then exit 0; fi
+          PR="${{ github.event.pull_request.number }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -sS -X POST -H "Content-Type: application/json" \
+            -d "{\"pr\":$PR,\"status\":\"success\",\"lakebase_branch\":\"ci-pr-$PR\",\"message\":\"Build and tests passed. Ready for QA.\",\"run_url\":\"$RUN_URL\",\"head_ref\":\"${{ github.head_ref }}\"}" \
+            "$TESTER_QUEUE_WEBHOOK_URL" || true
+
+  notify-committer-on-failure:
+    runs-on: self-hosted
+    needs: build-and-test
+    if: failure() && needs.build-and-test.result == 'failure'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comment on PR (notify committer — build or tests failed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="❌ **CI failed.** Build or tests failed on this PR. Please check the [workflow run](${RUN_URL}) and fix the failures."
+          gh pr comment "$PR" --body "$BODY" 2>/dev/null || true

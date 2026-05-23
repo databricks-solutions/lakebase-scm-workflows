@@ -1,0 +1,2 @@
+-- Flyway init placeholder
+-- Add your first migration here

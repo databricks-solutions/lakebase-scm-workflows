@@ -1,0 +1,86 @@
+{
+  "name": "@databricks-solutions/lakebase-scm-workflow-scripts",
+  "version": "0.1.0-alpha.0",
+  "description": "Opinionated git-Lakebase branch-pairing workflow scripts. Shared executable surface for the lakebase-scm-extension and Claude Code agent skills.",
+  "type": "module",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/databricks-solutions/lakebase-scm-workflows"
+  },
+  "main": "./dist/scripts/index.js",
+  "types": "./dist/scripts/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/scripts/index.d.ts",
+      "default": "./dist/scripts/index.js"
+    },
+    "./github": {
+      "types": "./dist/scripts/github/index.d.ts",
+      "default": "./dist/scripts/github/index.js"
+    },
+    "./lakebase": {
+      "types": "./dist/scripts/lakebase/index.d.ts",
+      "default": "./dist/scripts/lakebase/index.js"
+    },
+    "./git": {
+      "types": "./dist/scripts/git/index.d.ts",
+      "default": "./dist/scripts/git/index.js"
+    },
+    "./util": {
+      "types": "./dist/scripts/util/index.d.ts",
+      "default": "./dist/scripts/util/index.js"
+    },
+    "./lakebase/*": {
+      "types": "./dist/scripts/lakebase/*.d.ts",
+      "default": "./dist/scripts/lakebase/*.js"
+    },
+    "./github/*": {
+      "types": "./dist/scripts/github/*.d.ts",
+      "default": "./dist/scripts/github/*.js"
+    },
+    "./git/*": {
+      "types": "./dist/scripts/git/*.d.ts",
+      "default": "./dist/scripts/git/*.js"
+    },
+    "./util/*": {
+      "types": "./dist/scripts/util/*.d.ts",
+      "default": "./dist/scripts/util/*.js"
+    }
+  },
+  "bin": {
+    "lakebase-get-connection": "./dist/scripts/lakebase/get-connection.cli.js",
+    "lakebase-schema-diff": "./dist/scripts/lakebase/schema-diff.cli.js",
+    "lakebase-github-token": "./dist/scripts/github/auth.cli.js",
+    "lakebase-create-project": "./dist/scripts/lakebase/create-project.cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@databricks/appkit": "*",
+    "@databricks/lakebase": "*",
+    "adm-zip": "^0.5.16",
+    "find-java-home": "^2.0.0",
+    "octokit": "^4.0.0",
+    "tar": "^7.4.3",
+    "tree-kill": "^1.2.2",
+    "tweetsodium": "^0.0.5"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^22.10.0",
+    "@types/tar": "^6.1.13",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

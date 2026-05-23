@@ -1,0 +1,404 @@
+# On merge to any long-lived branch (main, staging, ...): run migrations on the
+# MATCHING Lakebase branch (main → production / default; staging → staging;
+# etc.), then delete ci-pr-* and the merged feature branch's Lakebase clone.
+# Language-aware: detects Java/Flyway, Python/Alembic, or Node.js/Knex.
+#
+# Two-tier flow:
+#   PR feature/* → staging  → push to staging   → migrate Lakebase 'staging'
+#   PR staging   → main     → push to main      → migrate Lakebase default (prod)
+#
+# Job design:
+#   - migrate-target: runs on push to any listed branch (triggered by PR merges or direct pushes)
+#     Resolves target Lakebase branch via scripts/ci/resolve-lakebase-branch.sh
+#     (same mapping used by pr.yml and scripts/post-checkout.sh).
+#   - cleanup-lakebase-branches: runs on pull_request closed+merged regardless
+#     of base.ref — any merged feature branch's ci-pr-N + its feature Lakebase
+#     clone are torn down.
+#
+# Auth: OAuth token refreshed by pre-push hook and synced to DATABRICKS_TOKEN secret.
+name: Merge
+
+on:
+  push:
+    # Add every promotion target here. 'main' is the production boundary; 'staging'
+    # is the pre-prod boundary for two-tier projects. Feature branches don't
+    # trigger this — they use pr.yml's CI branch.
+    branches: [main, staging]
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  migrate-target:
+    runs-on: self-hosted
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect project language
+        id: detect-lang
+        run: |
+          # Use git ls-files to check tracked marker files (avoids stale files on self-hosted runners)
+          if git ls-files --error-unmatch pom.xml >/dev/null 2>&1; then
+            echo "lang=java" >> $GITHUB_OUTPUT
+          elif git ls-files --error-unmatch pyproject.toml >/dev/null 2>&1 || git ls-files --error-unmatch requirements.txt >/dev/null 2>&1; then
+            echo "lang=python" >> $GITHUB_OUTPUT
+          elif git ls-files --error-unmatch package.json >/dev/null 2>&1; then
+            echo "lang=nodejs" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Cannot detect project language."
+            exit 1
+          fi
+          echo "Detected language: $(cat $GITHUB_OUTPUT | grep lang | cut -d= -f2)"
+
+      - name: Set up JDK
+        if: steps.detect-lang.outputs.lang == 'java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Set Java env vars
+        if: steps.detect-lang.outputs.lang == 'java'
+        run: echo "MAVEN_OPTS=--enable-native-access=ALL-UNNAMED" >> $GITHUB_ENV
+
+      - name: Set up Python + uv
+        if: steps.detect-lang.outputs.lang == 'python'
+        run: |
+          if command -v uv >/dev/null 2>&1; then
+            echo "uv already on PATH"; uv --version
+          elif command -v pip >/dev/null 2>&1; then
+            pip install uv
+          else
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            export PATH="$HOME/.local/bin:$PATH"
+            echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+          fi
+          uv sync --all-extras
+
+      - name: Set up Node.js
+        if: steps.detect-lang.outputs.lang == 'nodejs'
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            echo "Node.js already on PATH"; node --version
+          fi
+          npm install
+
+      # The official action installs to a user-writable path (no sudo). It's
+      # a no-op if a compatible databricks CLI is already on PATH.
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Authenticate Databricks
+        id: db-auth
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
+            echo "::error::DATABRICKS_HOST or DATABRICKS_TOKEN secret not set. Push from local to refresh: git push triggers pre-push hook which syncs the token."
+            exit 1
+          fi
+          echo "DATABRICKS_HOST=$DATABRICKS_HOST" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=$DATABRICKS_TOKEN" >> $GITHUB_ENV
+
+          if ! databricks current-user me -o json >/dev/null 2>&1; then
+            echo "::error::Databricks authentication failed. Token may be expired. Push again from local to refresh."
+            exit 1
+          fi
+          echo "Databricks authenticated."
+
+      # Resolve the Lakebase branch paired with the pushed git branch.
+      # main  → default (production) Lakebase branch
+      # staging → 'staging' Lakebase branch
+      # (mapping matches scripts/post-checkout.sh via scripts/sanitize-branch-name.sh)
+      - name: Resolve target DB credentials (Lakebase)
+        id: target-db
+        env:
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
+          TARGET_GIT_BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ -z "$LAKEBASE_PROJECT_ID" ]; then
+            echo "::error::LAKEBASE_PROJECT_ID secret not set. Add it in repo Settings → Secrets."
+            exit 1
+          fi
+          echo "Resolving Lakebase branch for git '$TARGET_GIT_BRANCH'..."
+          if ! ./scripts/ci/resolve-lakebase-branch.sh \
+                --git-branch "$TARGET_GIT_BRANCH" \
+                --ensure-endpoint \
+                --github-env; then
+            echo "::error::Failed to resolve Lakebase branch for git '$TARGET_GIT_BRANCH'. Ensure the paired Lakebase branch exists (main → default; staging → 'staging')."
+            exit 1
+          fi
+          echo "Target branch resolved: $LAKEBASE_BRANCH_NAME (git: $TARGET_GIT_BRANCH)"
+
+      - name: Create pre-migration snapshot
+        id: snapshot
+        env:
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
+        run: |
+          PROJ_PATH="projects/${LAKEBASE_PROJECT_ID}"
+          # Extract PR number from merge commit message (e.g. "Merge pull request #7")
+          PR_NUM="$(git log -1 --pretty=%s | grep -oE '#[0-9]+' | head -1 | tr -d '#')" || true
+          SNAPSHOT_NAME="pre-migrate-pr-${PR_NUM:-$(date +%s)}"
+
+          # Find default branch as source
+          LIST_RAW="$(databricks postgres list-branches "$PROJ_PATH" -o json 2>&1)"
+          BRANCHES="$(echo "$LIST_RAW" | jq -c 'if type == "array" then . elif type == "object" then (.branches // .items // []) else [] end' 2>/dev/null)" || BRANCHES="[]"
+          DEFAULT_NAME="$(echo "$BRANCHES" | jq -r '.[] | select((.status.default == true) or (.is_default == true)) | .name' 2>/dev/null | head -1)"
+
+          if [ -n "$DEFAULT_NAME" ]; then
+            echo "Creating pre-migration snapshot: $SNAPSHOT_NAME"
+            databricks postgres create-branch "$PROJ_PATH" "$SNAPSHOT_NAME" \
+              --json "{\"spec\": {\"source_branch\": \"${DEFAULT_NAME}\", \"ttl\": \"86400s\"}}" 2>&1 || true
+            echo "SNAPSHOT_NAME=$SNAPSHOT_NAME" >> $GITHUB_ENV
+            echo "SNAPSHOT_PROJ_PATH=$PROJ_PATH" >> $GITHUB_ENV
+          else
+            echo "::warning::Could not find default branch for snapshot. Proceeding without rollback safety."
+            echo "SNAPSHOT_NAME=" >> $GITHUB_ENV
+          fi
+
+      - name: Run migrations (target)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DB_USERNAME: ${{ env.DB_USERNAME }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL || secrets.SPRING_DATASOURCE_URL || '' }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME || secrets.SPRING_DATASOURCE_USERNAME || '' }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD || secrets.SPRING_DATASOURCE_PASSWORD || '' }}
+        run: |
+          if [ -z "$DATABASE_URL" ] && [ -z "$SPRING_DATASOURCE_URL" ]; then
+            echo "::error::No database credentials available after auth step. This should not happen."
+            exit 1
+          fi
+          LANG="${{ steps.detect-lang.outputs.lang }}"
+          echo "Running migrations on target Lakebase '$LAKEBASE_BRANCH_NAME' (git: $GITHUB_REF_NAME, $LANG)..."
+          if [ "$LANG" = "java" ]; then
+            if ! ./mvnw -q flyway:migrate -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="${SPRING_DATASOURCE_PASSWORD:-}"; then
+              echo "::error::Flyway migrate failed."
+              exit 1
+            fi
+          elif [ "$LANG" = "python" ]; then
+            if ! uv run alembic upgrade head; then
+              echo "::error::Alembic upgrade failed."
+              exit 1
+            fi
+          elif [ "$LANG" = "nodejs" ]; then
+            if ! npx knex migrate:latest; then
+              echo "::error::Knex migrate failed."
+              exit 1
+            fi
+          fi
+
+      - name: Clean up or preserve snapshot
+        if: always()
+        env:
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
+        run: |
+          if [ -z "${SNAPSHOT_NAME}" ]; then
+            echo "No snapshot to manage."
+            exit 0
+          fi
+          PROJ_PATH="projects/${LAKEBASE_PROJECT_ID}"
+
+          # Find the snapshot branch path
+          LIST_RAW="$(databricks postgres list-branches "$PROJ_PATH" -o json 2>&1)"
+          BRANCHES="$(echo "$LIST_RAW" | jq -c 'if type == "array" then . elif type == "object" then (.branches // .items // []) else [] end' 2>/dev/null)" || BRANCHES="[]"
+          SNAP_PATH="$(echo "$BRANCHES" | jq -r ".[] | select(.name | test(\"${SNAPSHOT_NAME}\")) | .name" 2>/dev/null | head -1)"
+
+          if [ -z "$SNAP_PATH" ]; then
+            echo "Snapshot branch not found in listing. May have already expired."
+            exit 0
+          fi
+
+          MIGRATE_RESULT="${{ steps.snapshot.outcome }}"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "Migrations succeeded. Deleting snapshot: $SNAP_PATH"
+            databricks postgres delete-branch "$SNAP_PATH" 2>&1 || true
+          else
+            echo "::warning::Migrations failed. Snapshot preserved for rollback: $SNAP_PATH"
+            echo "### Migration Rollback Available" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "A pre-migration snapshot was preserved: \`${SNAPSHOT_NAME}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To recover, point your application at this branch or use it as the source for a new default branch." >> $GITHUB_STEP_SUMMARY
+            echo "The snapshot will auto-expire in 24 hours." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify schema (post-migrate)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DB_USERNAME: ${{ env.DB_USERNAME }}
+          DB_PASSWORD: ${{ env.DB_PASSWORD }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::No DATABASE_URL; skipping schema verification."
+            exit 0
+          fi
+          if ! command -v psql >/dev/null 2>&1; then
+            echo "::warning::psql not found; skipping schema verification."
+            exit 0
+          fi
+
+          # Parse postgresql:// URL into psql connection params
+          URL_NO_SCHEME="${DATABASE_URL#postgresql://}"
+          URL_AFTER_AT="${URL_NO_SCHEME##*@}"
+          PG_HOST="$(echo "$URL_AFTER_AT" | sed -n 's|\([^:/]*\).*|\1|p')"
+          PG_PORT="$(echo "$URL_AFTER_AT" | sed -n 's|[^:]*:\([0-9]*\)/.*|\1|p')"
+          PG_DB="$(echo "$URL_AFTER_AT" | sed -n 's|[^/]*/\([^?]*\).*|\1|p')"
+          [ -z "$PG_PORT" ] && PG_PORT="5432"
+
+          echo "Verifying schema on ${PG_HOST}:${PG_PORT}/${PG_DB}..."
+
+          # Extract expected tables from migration files (language-aware)
+          LANG="${{ steps.detect-lang.outputs.lang }}"
+          CREATED_TABLES=""
+          DROPPED_TABLES=""
+          if [ "$LANG" = "java" ]; then
+            CREATED_TABLES="$(grep -rhi 'CREATE TABLE' src/main/resources/db/migration/*.sql 2>/dev/null \
+              | sed -n 's/.*CREATE TABLE[^[:alnum:]]*\(IF NOT EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p' \
+              | sort -u)"
+            DROPPED_TABLES="$(grep -rhi 'DROP TABLE' src/main/resources/db/migration/*.sql 2>/dev/null \
+              | sed -n 's/.*DROP TABLE[^[:alnum:]]*\(IF EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p' \
+              | sort -u)"
+          elif [ "$LANG" = "python" ]; then
+            CREATED_TABLES="$(grep -rhi 'op.create_table\|CREATE TABLE' alembic/versions/*.py 2>/dev/null \
+              | sed -n "s/.*op.create_table(['\"][[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/p; s/.*CREATE TABLE[^[:alnum:]]*\(IF NOT EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p" \
+              | sort -u)"
+            DROPPED_TABLES="$(grep -rhi 'op.drop_table\|DROP TABLE' alembic/versions/*.py 2>/dev/null \
+              | sed -n "s/.*op.drop_table(['\"][[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/p; s/.*DROP TABLE[^[:alnum:]]*\(IF EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p" \
+              | sort -u)"
+          elif [ "$LANG" = "nodejs" ]; then
+            CREATED_TABLES="$(grep -rhi 'createTable\|CREATE TABLE' migrations/*.js 2>/dev/null \
+              | sed -n "s/.*createTable(['\"][[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/p; s/.*CREATE TABLE[^[:alnum:]]*\(IF NOT EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p" \
+              | sort -u)"
+            DROPPED_TABLES="$(grep -rhi 'dropTable\|DROP TABLE' migrations/*.js 2>/dev/null \
+              | sed -n "s/.*dropTable(['\"][[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\).*/\1/p; s/.*DROP TABLE[^[:alnum:]]*\(IF EXISTS[[:space:]]*\)\{0,1\}\(public\.\)\{0,1\}\([a-zA-Z_][a-zA-Z0-9_]*\).*/\3/p" \
+              | sort -u)"
+          fi
+
+          # Remove dropped tables from expected list
+          EXPECTED_TABLES=""
+          for table in $CREATED_TABLES; do
+            if ! echo "$DROPPED_TABLES" | grep -qw "$table"; then
+              EXPECTED_TABLES="$(printf '%s\n%s' "$EXPECTED_TABLES" "$table")"
+            fi
+          done
+          EXPECTED_TABLES="$(echo "$EXPECTED_TABLES" | sed '/^$/d')"
+
+          if [ -z "$EXPECTED_TABLES" ]; then
+            echo "No tables expected on target after accounting for DROP TABLE migrations; nothing to verify."
+            exit 0
+          fi
+
+          # Query actual tables from target Lakebase branch
+          ACTUAL_TABLES="$(PGPASSWORD="$DB_PASSWORD" psql \
+            "host=$PG_HOST port=$PG_PORT dbname=$PG_DB user=$DB_USERNAME sslmode=require" \
+            -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;" 2>&1)"
+
+          MISSING=""
+          for table in $EXPECTED_TABLES; do
+            # Skip migration tracking tables
+            [ "$table" = "flyway_schema_history" ] && continue
+            [ "$table" = "alembic_version" ] && continue
+            [ "$table" = "knex_migrations" ] && continue
+            [ "$table" = "knex_migrations_lock" ] && continue
+            if ! echo "$ACTUAL_TABLES" | grep -qw "$table"; then
+              MISSING="${MISSING} ${table}"
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::Schema verification failed. Tables missing on target '${LAKEBASE_BRANCH_NAME}':${MISSING}"
+            echo ""
+            echo "Expected tables from migrations:"
+            echo "$EXPECTED_TABLES"
+            echo ""
+            echo "Actual tables on target (${LAKEBASE_BRANCH_NAME}):"
+            echo "$ACTUAL_TABLES"
+            echo ""
+            echo "To fix: manually run the missing migration SQL against '${LAKEBASE_BRANCH_NAME}', or re-run the merge workflow."
+            exit 1
+          fi
+
+          echo "Schema verification passed. All $(echo "$EXPECTED_TABLES" | wc -l | tr -d ' ') expected tables exist on target '${LAKEBASE_BRANCH_NAME}'."
+
+  # Separate job: branch cleanup runs only on PR merge (not direct pushes to main).
+  # Uses PR event data directly — no commit message parsing needed.
+  cleanup-lakebase-branches:
+    runs-on: self-hosted
+    # Fire on ANY merged PR regardless of base.ref. Two-tier: feature→staging
+    # and staging→main both need their ci-pr-N + feature Lakebase clones torn
+    # down. Persistent branches (main, staging) are never deleted (the delete
+    # helper script's allowlist guards against that).
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # No-sudo install via the official action; no-op if already on PATH.
+      - name: Install Databricks CLI (cleanup job)
+        uses: databricks/setup-cli@main
+
+      - name: Authenticate Databricks (cleanup job)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
+            echo "::error::DATABRICKS_HOST or DATABRICKS_TOKEN secret not set."
+            exit 1
+          fi
+          echo "DATABRICKS_HOST=$DATABRICKS_HOST" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=$DATABRICKS_TOKEN" >> $GITHUB_ENV
+
+          if ! databricks current-user me -o json >/dev/null 2>&1; then
+            echo "::error::Databricks authentication failed. Token may be expired."
+            exit 1
+          fi
+          echo "Databricks authenticated."
+
+      - name: Delete CI and feature DB branches (Lakebase)
+        env:
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$LAKEBASE_PROJECT_ID" ]; then
+            echo "::error::LAKEBASE_PROJECT_ID secret not set."
+            exit 1
+          fi
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+
+          # Sanitize feature branch name via shared script
+          FEATURE_BRANCH=""
+          if [ -n "$HEAD_REF" ]; then
+            FEATURE_BRANCH="$(bash scripts/sanitize-branch-name.sh "$HEAD_REF")"
+          fi
+
+          echo "PR_NUM=${PR_NUM} HEAD_REF=${HEAD_REF} FEATURE_BRANCH=${FEATURE_BRANCH:-none}"
+
+          ARGS=""
+          [ -n "$PR_NUM" ] && ARGS="ci-pr-${PR_NUM}"
+          if [ -n "$FEATURE_BRANCH" ] && [ "$FEATURE_BRANCH" != "main" ] && [ "$FEATURE_BRANCH" != "master" ]; then
+            ARGS="${ARGS:+$ARGS }${FEATURE_BRANCH}"
+          fi
+
+          if [ -z "$ARGS" ]; then
+            echo "::warning::No branch names resolved from PR event."
+            exit 0
+          fi
+
+          echo "Deleting Lakebase branches: $ARGS"
+          if ! ./scripts/delete-lakebase-branches.sh $ARGS; then
+            echo "::warning::Some Lakebase branches could not be deleted (may already be gone)."
+          fi
+          echo "Lakebase branch cleanup finished."

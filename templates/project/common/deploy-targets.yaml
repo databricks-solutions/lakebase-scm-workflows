@@ -1,0 +1,12 @@
+# Deploy targets for Databricks Apps deployment.
+# Each target maps to a workspace, app, and Lakebase project/branch.
+# Deploy with: ./scripts/deploy.sh <target>  (or via the Lakebase SCM Extension)
+#
+# See: databricks-app-deploy skill for full documentation.
+targets:
+  prod:
+    workspace_profile: your-profile-name
+    workspace_path: /Workspace/Users/you@databricks.com/{{PROJECT_NAME}}
+    app_name: {{PROJECT_NAME}}
+    lakebase_project: {{PROJECT_NAME}}
+    lakebase_branch: production

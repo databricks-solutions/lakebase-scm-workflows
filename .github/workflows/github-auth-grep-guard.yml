@@ -1,0 +1,65 @@
+name: Grep guard — single GitHub auth seam
+
+# CI invariant: only scripts/github/auth.ts is allowed to mint a GitHub token
+# directly. Every other call site must go through resolveGitHubToken().
+#
+# Why: same reasoning as the Lakebase grep guard. One seam, one fallback
+# chain, one place to evolve scopes/auth-modes. Drift across call sites is
+# what produced the gh-token / VS Code session / PAT inconsistency we just
+# unified.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  github-auth-grep-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Forbid direct GitHub token minting outside scripts/github/auth.ts
+        run: |
+          set -euo pipefail
+          echo "Scanning for direct GitHub token resolution outside scripts/github/auth.ts..."
+          # Match the canonical resolver call sites:
+          #   - vscode.authentication.getSession('github', ...)
+          #   - execFileSync('gh', ['auth', 'token'])  /  exec('gh auth token')
+          #   - process.env.GITHUB_TOKEN (read for resolution, not just for env wiring)
+          # Allowed: scripts/github/auth.ts (the seam itself), docs (describes the call),
+          # tests (asserts seam behavior).
+          patterns=(
+            "authentication\.getSession\\s*\\(\\s*['\"]github['\"]"
+            "gh\\s+auth\\s+token"
+            "process\\.env\\.GITHUB_TOKEN"
+          )
+          violations=""
+          for p in "${patterns[@]}"; do
+            matches=$(
+              grep -rnE "$p" \
+                --include='*.ts' --include='*.js' --include='*.sh' \
+                --exclude-dir=node_modules \
+                --exclude-dir=dist \
+                --exclude-dir=.github \
+                --exclude-dir=tests \
+                . \
+              | grep -v 'scripts/github/auth.ts' \
+              | grep -v 'scripts/github/auth.cli.ts' \
+              | grep -v 'docs/github-auth.md' \
+              || true
+            )
+            if [ -n "$matches" ]; then
+              violations="${violations}${matches}"$'\n'
+            fi
+          done
+          if [ -n "$violations" ]; then
+            echo "::error::Found GitHub auth resolution outside the single seam (scripts/github/auth.ts):"
+            printf "%s" "$violations"
+            echo
+            echo "Route the call through resolveGitHubToken() from scripts/github/auth.ts."
+            echo "See docs/github-auth.md."
+            exit 1
+          fi
+          echo "OK — only scripts/github/auth.ts resolves GitHub tokens."

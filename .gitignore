@@ -1,5 +1,18 @@
+<<<<<<< HEAD
 *conf*.json
 .DS_Store
 __pycache__
 .idea/
 .env
+=======
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.vsix
+*.log
+.DS_Store
+coverage/
+.vitest/
+>>>>>>> cc14594 (Initial commit: lakebase-scm-workflows substrate)
