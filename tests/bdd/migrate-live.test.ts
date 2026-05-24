@@ -80,7 +80,6 @@ describe.skipIf(!RUN_SUITE)("migrate live (alembic against a freshly-provisioned
           output: "pool",
           instance: projectId,
           branch: branchName,
-          host: DATABRICKS_HOST,
         });
         await pool.query(`DROP TABLE IF EXISTS ${tableName}`);
         await pool.end();
@@ -138,7 +137,6 @@ describe.skipIf(!RUN_SUITE)("migrate live (alembic against a freshly-provisioned
       output: "pool",
       instance: projectId,
       branch: branchName,
-      host: DATABRICKS_HOST,
     });
     try {
       const { rows } = await pool.query(`SELECT to_regclass($1) AS oid`, [tableName]);
@@ -172,7 +170,6 @@ describe.skipIf(!RUN_SUITE)("migrate live (alembic against a freshly-provisioned
       output: "pool",
       instance: projectId,
       branch: branchName,
-      host: DATABRICKS_HOST,
     });
     try {
       const { rows } = await pool.query(`SELECT to_regclass($1) AS oid`, [tableName]);

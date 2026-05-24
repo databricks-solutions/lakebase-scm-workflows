@@ -109,18 +109,22 @@ Hermetic `npm test` skips every test that needs a real Databricks workspace. To 
 
 | Mode | Required env + tools | What runs | Creates resources? |
 |---|---|---|---|
-| default (migrate) | `DATABRICKS_HOST`, `LAKEBASE_TEST_E2E=1`, authenticated `databricks` CLI, `python3` | `tests/bdd/migrate-live.test.ts` | **Yes**: a `migrate-7091-<timestamp>` Lakebase project on `$DATABRICKS_HOST`, deleted in `afterAll()` |
+| default (migrate) | `DATABRICKS_HOST`, `LAKEBASE_TEST_E2E=1`, authenticated `databricks` CLI, `python3`, `java`, `flyway` | `tests/bdd/migrate-live.test.ts` (alembic) + `tests/bdd/migrate-live-flyway.test.ts` | **Yes**: a `migrate-7091-<timestamp>` and a `migrate-7098-<timestamp>` Lakebase project on `$DATABRICKS_HOST`, each deleted in their suite's `afterAll()` |
 | `--read-only` | `LAKEBASE_TEST_INSTANCE`, `LAKEBASE_TEST_BRANCH` | Read-only schema / endpoint / DSN suites against the configured branch | No |
 | `--all` | both of the above | Everything vitest discovers when gating env is satisfied | Yes (default mode) |
 
 ```bash
-# Default mode: self-provisions a test project on $DATABRICKS_HOST.
-# On first run the script creates .venv-live-tests/ with alembic +
-# sqlalchemy + psycopg2-binary; subsequent runs reuse it.
+# Default mode: self-provisions test projects on $DATABRICKS_HOST.
+# On first run the script creates:
+#   .venv-live-tests/                    (alembic + sqlalchemy + psycopg2-binary)
+#   .tools-live-tests/flyway-<version>/  (Flyway Community CLI; skipped when a `flyway` is already on PATH)
+# Subsequent runs reuse both.
 export DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
 export LAKEBASE_TEST_E2E=1
 npm run test:live
 ```
+
+If your network blocks Maven Central (where the Flyway CLI is hosted), install Flyway separately (`brew install flyway`, your internal mirror, etc.) and put it on `PATH` before invoking `npm run test:live`. The script's preflight checks find the pre-installed binary and skips the download.
 
 **Consent model.** Setting `LAKEBASE_TEST_E2E=1 + DATABRICKS_HOST` authorizes the suite to create a Lakebase project on your workspace. The helper script pauses for 5 seconds before the create call with a notice showing the workspace + project name pattern; ctrl-c aborts. Set `LAKEBASE_TEST_NO_PROMPT=1` in CI to skip the pause.
 

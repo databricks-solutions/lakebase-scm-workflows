@@ -227,22 +227,10 @@ describe("listMigrations: language override", () => {
   });
 });
 
-describe("flyway + knex apply/rollback/status: stub errors", () => {
-  // These primitives are not yet implemented (FEIP-7098 / FEIP-7099).
-  // The stubs must throw clear MigrationError pointers; tests confirm
-  // that a Java/Kotlin or Node consumer gets the right message rather
-  // than a confusing crash.
-
-  it("flyway apply throws MigrationError with FEIP-7098 pointer", async () => {
-    const dir = mkTempDir();
-    fs.writeFileSync(path.join(dir, "pom.xml"), "<project/>");
-    try {
-      const { applyFlyway } = await import("../../scripts/lakebase/migrate-runners/flyway.js");
-      await expect(applyFlyway({ projectDir: dir, dsn: "x" })).rejects.toThrow(/FEIP-7098/);
-    } finally {
-      rm(dir);
-    }
-  });
+describe("flyway rollback + knex apply/rollback/status: error paths", () => {
+  // Flyway: apply + status are implemented (live test covers them).
+  // Rollback intentionally throws because Flyway Community Edition has
+  // no `undo`. Knex primitives are stubs pending FEIP-7099.
 
   it("flyway rollback throws with the Flyway Community caveat", async () => {
     const dir = mkTempDir();
@@ -250,7 +238,7 @@ describe("flyway + knex apply/rollback/status: stub errors", () => {
       const { rollbackFlyway } = await import("../../scripts/lakebase/migrate-runners/flyway.js");
       await expect(
         rollbackFlyway({ projectDir: dir, dsn: "x", target: "-1" })
-      ).rejects.toThrow(/Flyway Community Edition does not support rollback/);
+      ).rejects.toThrow(/Flyway Community Edition does not support/);
     } finally {
       rm(dir);
     }

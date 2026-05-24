@@ -2,20 +2,24 @@
 # Run the kit's live integration tests against a real Databricks workspace.
 #
 # Usage:
-#   scripts/run-live-tests.sh              # migrate-live only (self-provisioning, default)
+#   scripts/run-live-tests.sh              # migrate-live (alembic + flyway), default
 #   scripts/run-live-tests.sh --read-only  # tier 1 read-only suite against an existing branch
 #   scripts/run-live-tests.sh --all        # both of the above + any other live suites
 #
 # Modes:
 #
 #   (default) migrate-live
-#     Provisions its own Lakebase project on $DATABRICKS_HOST, runs the
-#     four migrate primitives (apply / rollback / status / list), and
-#     deletes the project on teardown. Project name is timestamp-suffixed.
+#     Provisions its own Lakebase projects on $DATABRICKS_HOST and runs
+#     the four migrate primitives (apply / rollback / status / list)
+#     once with the Alembic runner against a Python project layout and
+#     once with the Flyway runner against a Maven/Spring project layout.
+#     Each test creates and tears down its own project, suffixed with a
+#     timestamp.
 #     Required env: DATABRICKS_HOST, LAKEBASE_TEST_E2E=1
-#     Required tools: databricks CLI (authenticated), python3
-#     (the script auto-provisions a Python venv at .venv-live-tests/ with
-#     alembic + sqlalchemy + psycopg2-binary on first run)
+#     Required tools: databricks CLI (authenticated), python3, java
+#     The script auto-provisions on first run:
+#       - .venv-live-tests/ (Python venv with alembic, sqlalchemy, psycopg2-binary)
+#       - .tools-live-tests/flyway-<version>/ (Flyway Community Edition CLI)
 #
 #   --read-only
 #     Read-only checks against an existing Lakebase branch. Mints
@@ -31,6 +35,8 @@
 #   databricks postgres delete-project <projectId>
 
 set -euo pipefail
+
+FLYWAY_VERSION="10.20.1"
 
 MODE="migrate"
 case "${1:-}" in
@@ -82,6 +88,9 @@ if [[ "$MODE" == "migrate" || "$MODE" == "all" ]]; then
   fi
   require_cmd databricks "install: https://docs.databricks.com/dev-tools/cli/install.html"
   require_cmd python3    "install: https://www.python.org/downloads/"
+  require_cmd java       "install JDK 17+: https://adoptium.net/  (needed to run the Flyway CLI)"
+  require_cmd curl       "install curl (used to download the Flyway CLI on first run)"
+  require_cmd unzip      "install unzip (used to extract the Flyway CLI on first run)"
 fi
 
 if [[ "$MODE" == "read-only" || "$MODE" == "all" ]]; then
@@ -112,6 +121,44 @@ if [[ "$MODE" == "migrate" || "$MODE" == "all" ]]; then
   export PATH="$VENV/bin:$PATH"
 fi
 
+# Provision the Flyway Community Edition CLI for the migrate-live-flyway
+# suite. Idempotent: skips download if .tools-live-tests/flyway-<version>
+# already exists. Prepends the bin dir to PATH so the test subprocess
+# finds `flyway`.
+if [[ "$MODE" == "migrate" || "$MODE" == "all" ]]; then
+  FLYWAY_HOME="$REPO_ROOT/.tools-live-tests/flyway-$FLYWAY_VERSION"
+  if command -v flyway >/dev/null 2>&1; then
+    green "  using flyway from $(command -v flyway) (pre-installed)"
+  elif [[ -x "$FLYWAY_HOME/flyway" ]]; then
+    green "  using flyway from $FLYWAY_HOME/flyway (cached)"
+    export PATH="$FLYWAY_HOME:$PATH"
+  else
+    blue ""
+    blue "==> Provisioning Flyway CLI $FLYWAY_VERSION at $FLYWAY_HOME (one-time setup)"
+    mkdir -p "$REPO_ROOT/.tools-live-tests"
+    ZIP="$REPO_ROOT/.tools-live-tests/flyway-commandline-$FLYWAY_VERSION.zip"
+    URL="https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip"
+    if [[ ! -f "$ZIP" ]]; then
+      if ! curl --fail --silent --show-error --location -o "$ZIP" "$URL"; then
+        red ""
+        red "  Could not download Flyway from Maven Central ($URL)."
+        yellow "  Workarounds:"
+        yellow "    - Install Flyway manually (e.g. brew install flyway) and re-run."
+        yellow "    - Pre-extract a Flyway tree at $FLYWAY_HOME with an executable flyway/ bin."
+        exit 1
+      fi
+    fi
+    unzip -q -d "$REPO_ROOT/.tools-live-tests" "$ZIP"
+    rm -f "$ZIP"
+    if [[ ! -x "$FLYWAY_HOME/flyway" ]]; then
+      red "  flyway extracted but $FLYWAY_HOME/flyway is missing or not executable"
+      exit 1
+    fi
+    green "  using flyway from $FLYWAY_HOME/flyway"
+    export PATH="$FLYWAY_HOME:$PATH"
+  fi
+fi
+
 # Build dist so the test fixtures import the latest compiled substrate.
 blue ""
 blue "==> Building dist/"
@@ -119,10 +166,12 @@ npm run build >/dev/null
 
 if [[ "$MODE" == "migrate" || "$MODE" == "all" ]]; then
   yellow ""
-  yellow "==> About to create a Lakebase project on your workspace"
+  yellow "==> About to create Lakebase projects on your workspace"
   yellow "    workspace:    $DATABRICKS_HOST"
-  yellow "    project name: migrate-7091-<timestamp>"
-  yellow "    cleanup:      automatic in afterAll() with 3-attempt retry"
+  yellow "    project names:"
+  yellow "      migrate-7091-<timestamp>  (Alembic suite)"
+  yellow "      migrate-7098-<timestamp>  (Flyway suite)"
+  yellow "    cleanup:      automatic in each suite's afterAll() with 3-attempt retry"
   yellow "    manual fix:   databricks postgres delete-project <id>  (if cleanup leaks)"
   yellow ""
   yellow "    Press Ctrl-C in the next 5 seconds to abort. Setting LAKEBASE_TEST_NO_PROMPT=1"
@@ -137,7 +186,9 @@ blue "==> Running live tests (mode: $MODE)"
 
 case "$MODE" in
   migrate)
-    npx vitest run tests/bdd/migrate-live.test.ts
+    npx vitest run \
+      tests/bdd/migrate-live.test.ts \
+      tests/bdd/migrate-live-flyway.test.ts
     ;;
   read-only)
     npx vitest run \
