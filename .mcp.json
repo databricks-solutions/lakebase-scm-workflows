@@ -1,0 +1,23 @@
+{
+  "_comment": "MCP server manifest — placeholder. The actual server implementation (a thin wrapper exposing scripts/lakebase/<verb>.ts as MCP tools) lives at apps/mcp-server/ (TODO). Until that ships, Claude Desktop / Codex / other MCP-capable agents can't drive lakebase-scm-workflows via MCP yet.",
+  "_status": "placeholder",
+  "_targets": [
+    "Claude Desktop",
+    "OpenAI Codex",
+    "Cursor (when using MCP rather than skill plugin)"
+  ],
+  "_next_steps": [
+    "Build apps/mcp-server/ — TypeScript MCP server that exposes scripts/lakebase/<verb> as tools.",
+    "Replace the 'command' below with: node /path/to/apps/mcp-server/dist/index.js",
+    "Reference: databricks-solutions/ai-dev-kit ships its own databricks-mcp-server/ for the same pattern across the dev-hub skills."
+  ],
+  "mcpServers": {
+    "lakebase-scm-workflows": {
+      "command": "echo",
+      "args": [
+        "lakebase-scm-workflows MCP server not implemented yet — see .mcp.json _next_steps"
+      ],
+      "env": {}
+    }
+  }
+}
