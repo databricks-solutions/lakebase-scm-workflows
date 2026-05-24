@@ -1,6 +1,6 @@
 # lakebase-scm-workflows
 
-Opinionated git-Lakebase branch-pairing workflows. The shared executable surface that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and a Claude Code agent skill both consume — one canonical implementation, two presentation layers.
+Opinionated git-Lakebase branch-pairing workflows. The shared executable surface that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and coding agents — Claude Code (terminal), Claude Desktop, OpenAI Foundry, Cursor, and Databricks Genie Code — all consume. One canonical implementation, multiple presentation layers.
 
 ## What this is
 
