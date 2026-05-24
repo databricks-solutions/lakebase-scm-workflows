@@ -7,7 +7,7 @@ Lakebase-backed application development kit. The shared foundation that the [`la
 - **`lakebase-tdd-workflows`** — test-driven development against paired branches. (Coming — FEIP-7066.)
 - Future domains include deploying to Databricks Apps and beyond.
 
-This is NOT [`@databricks/sdk`](https://www.npmjs.com/package/@databricks/sdk) (REST client) and the "app dev" framing is generic: it covers apps deployed to Databricks Apps, services, libraries, and any other software that uses Lakebase.
+The "app dev" framing covers applications, services, libraries, and any other software that uses Lakebase — including projects deployed to Databricks Apps.
 
 ## What this is
 
