@@ -48,18 +48,22 @@ export interface CreateBranchArgs extends BranchLookupOpts {
 }
 
 /**
- * Create a Lakebase branch. Idempotent: if a branch with the sanitized
- * name already exists, returns it without trying to recreate.
+ * Create a Lakebase branch.
+ *
+ * Idempotent on a true retry: if a branch with the sanitized name already
+ * exists AND its actual source matches the source the caller is asking
+ * for now, returns the existing branch. If the existing branch was forked
+ * from a *different* source, throws — silently returning a branch with
+ * the wrong lineage would mask the user's intent (e.g. they meant to
+ * branch from staging this time, but a stale branch from production
+ * still occupies the name).
  */
 export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBranchInfo> {
   const sanitized = sanitizeBranchName(args.branch);
   const lookup: BranchLookupOpts = { instance: args.instance, host: args.host };
 
-  // Idempotency: return existing branch if it already exists.
-  const existing = await getBranchByName(sanitized, lookup);
-  if (existing) return existing;
-
-  // Resolve the source (parent) branch full path.
+  // Resolve the source (parent) branch full path first — needed both for
+  // create AND for the idempotency-vs-conflict comparison below.
   let sourceBranchPath: string | undefined;
   if (args.parentBranch) {
     sourceBranchPath = `${projectPath(args.instance)}/branches/${sanitizeBranchName(args.parentBranch)}`;
@@ -76,6 +80,24 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
       );
     }
     sourceBranchPath = def.name;
+  }
+
+  // Idempotency-vs-conflict: if the branch already exists, only return it
+  // when its actual source matches what was just requested. Otherwise the
+  // caller asked for a different parent than what's on file, and silently
+  // handing back the stale branch would lie about the lineage.
+  const existing = await getBranchByName(sanitized, lookup);
+  if (existing) {
+    const existingLeaf = leafOf(existing.sourceBranchName);
+    const requestedLeaf = leafOf(sourceBranchPath);
+    if (existingLeaf && requestedLeaf && existingLeaf !== requestedLeaf) {
+      throw new LakebaseBranchError(
+        `Branch "${sanitized}" already exists, but was forked from "${existingLeaf}", ` +
+          `not the requested "${requestedLeaf}". Delete the existing branch first, ` +
+          `or pick a different target name.`,
+      );
+    }
+    return existing;
   }
 
   const spec = JSON.stringify({ spec: { source_branch: sourceBranchPath, no_expiry: true } });
@@ -112,6 +134,16 @@ export async function waitForBranchReady(args: WaitForBranchReadyArgs): Promise<
   throw new LakebaseBranchError(
     `Branch "${args.branch}" did not reach READY within ${timeoutMs}ms`
   );
+}
+
+/** Extract the branch leaf name from either a full path
+ *  ("projects/X/branches/Y") or a bare leaf ("Y"). Returns undefined when
+ *  input is empty/undefined so callers can decide whether the comparison
+ *  is meaningful. */
+function leafOf(pathOrName: string | undefined): string | undefined {
+  if (!pathOrName) return undefined;
+  const segments = pathOrName.split("/");
+  return segments[segments.length - 1] || undefined;
 }
 
 async function dbcli(args: string[], host?: string): Promise<string> {

@@ -11,6 +11,14 @@ const COMPARISON = process.env.LAKEBASE_TEST_COMPARISON_BRANCH;
 const DATABASE = process.env.LAKEBASE_TEST_DATABASE;
 const skip = !INSTANCE || !BRANCH;
 
+// schema-diff's getConnection retries up to ~16s on transient
+// "branch id not found" / endpoint-not-yet-provisioned errors (substrate
+// option C). Tests that run against freshly-created branches need a
+// timeout budget that comfortably exceeds the retry window — vitest's 5s
+// default trips before the first successful endpoint lookup. 60s is two
+// retry cycles plus connect+query slack.
+const LIVE_TEST_TIMEOUT_MS = 60_000;
+
 describe.skipIf(skip)("schema-diff against real Lakebase", () => {
   it("returns the documented SchemaDiffResult shape", async () => {
     const result = await getSchemaDiff({
@@ -47,13 +55,20 @@ describe.skipIf(skip)("schema-diff against real Lakebase", () => {
     ]);
     expect(allTableNames.has("flyway_schema_history")).toBe(false);
 
-    // inSync is consistent with the change arrays
+    // inSync must be consistent with the change arrays. A failure here
+    // means either (a) the diff logic is broken, or (b) we never reached
+    // the diff because getConnection couldn't resolve the branch's
+    // endpoint. (b) is a substrate concern: getConnection retries on
+    // transient "branch id not found" so the test's empty=empty fork
+    // reaches the happy path. The test deliberately does NOT exempt the
+    // error case — if it surfaces, that's a real substrate regression.
+    expect(result.error).toBeUndefined();
     if (result.created.length === 0 && result.modified.length === 0 && result.removed.length === 0) {
       expect(result.inSync).toBe(true);
     } else {
       expect(result.inSync).toBe(false);
     }
-  });
+  }, LIVE_TEST_TIMEOUT_MS);
 
   it("is deterministic across calls (sorted output)", async () => {
     const a = await getSchemaDiff({
@@ -72,7 +87,7 @@ describe.skipIf(skip)("schema-diff against real Lakebase", () => {
     expect(a.created.map((t) => t.name)).toEqual(b.created.map((t) => t.name));
     expect(a.modified.map((t) => t.name)).toEqual(b.modified.map((t) => t.name));
     expect(a.removed.map((t) => t.name)).toEqual(b.removed.map((t) => t.name));
-  });
+  }, LIVE_TEST_TIMEOUT_MS);
 });
 
 describe("schema-diff (skip-when-env-missing)", () => {

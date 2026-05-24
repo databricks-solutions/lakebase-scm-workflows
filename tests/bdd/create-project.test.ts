@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createProject } from "../../scripts/lakebase/create-project.js";
+import { deleteLakebaseProject } from "../../scripts/lakebase/lakebase-project.js";
 
 const tmpDirs: string[] = [];
 afterEach(() => {
@@ -53,13 +54,41 @@ describe("createProject input validation", () => {
 const liveE2E = process.env.LAKEBASE_TEST_E2E === "1";
 
 describe.skipIf(!liveE2E)("createProject — live end-to-end (LAKEBASE_TEST_E2E=1)", () => {
+  // createProject does Lakebase create + branch resolve + scaffold + commit +
+  // health check end-to-end. On a cold workspace it routinely takes 30-60s,
+  // well past vitest's 5s default. Bump to 3 min so a transient slow Lakebase
+  // create doesn't false-positive a timeout failure.
+  const E2E_TIMEOUT_MS = 180_000;
+
+  // Track every Lakebase project we create so afterEach can tear it down.
+  // Without this every E2E retry leaks a project — the ones the suite ran
+  // through before this guard left orphans behind for a manual reaper.
+  let createdProjectIds: Array<{ id: string; host: string }> = [];
+
+  afterEach(async () => {
+    for (const { id, host } of createdProjectIds) {
+      try {
+        await deleteLakebaseProject({ projectId: id, host });
+      } catch {
+        // best-effort — leaks should be caught by reapOrphanProjects style
+        // sweeps in the consumer test harness (ecom integration test).
+      }
+    }
+    createdProjectIds = [];
+  });
+
   it("creates a Lakebase-paired local-only project end-to-end", async () => {
     const parent = mkTmp();
+    const host =
+      process.env.LAKEBASE_TEST_HOST ?? "https://workspace.cloud.databricks.com";
+    const projectName = `lbscm-test-${Date.now()}`;
+    // Pre-register so afterEach tears it down even on assertion failure.
+    createdProjectIds.push({ id: projectName, host });
+
     const result = await createProject({
-      projectName: `lbscm-test-${Date.now()}`,
+      projectName,
       parentDir: parent,
-      databricksHost:
-        process.env.LAKEBASE_TEST_HOST ?? "https://workspace.cloud.databricks.com",
+      databricksHost: host,
       createGithubRepo: false,
       language: "python",
       runnerType: "github-hosted",
@@ -71,7 +100,7 @@ describe.skipIf(!liveE2E)("createProject — live end-to-end (LAKEBASE_TEST_E2E=
     expect(fs.existsSync(path.join(result.projectDir, ".env.example"))).toBe(true);
     expect(fs.existsSync(path.join(result.projectDir, ".env"))).toBe(false);
     expect(fs.existsSync(path.join(result.projectDir, "pyproject.toml"))).toBe(true);
-  });
+  }, E2E_TIMEOUT_MS);
 });
 
 describe("createProject — skip-when-e2e-disabled", () => {

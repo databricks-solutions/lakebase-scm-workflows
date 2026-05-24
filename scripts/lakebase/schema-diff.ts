@@ -231,11 +231,34 @@ function resolveComparisonBranch(instance: string, branch: string): string | und
   const branchInfo = describeBranch(instance, branch);
   const sourceBranchId = branchInfo?.source_branch_id ?? branchInfo?.sourceBranchId;
   if (sourceBranchId && typeof sourceBranchId === "string") {
-    return sourceBranchId;
+    // source_branch_id is a UID (br-foo-bar). list-endpoints (and most other
+    // postgres API endpoints) accept the branch NAME, not the UID — passing
+    // the UID returns "branch id not found". Resolve it to a name here.
+    const resolved = resolveBranchNameByUid(instance, sourceBranchId);
+    if (resolved) return resolved;
   }
   const def = findDefaultBranch(instance);
   if (def) return def;
   return undefined;
+}
+
+/**
+ * Translate a Lakebase branch UID (`br-foo-bar`) into its branch NAME
+ * (`production`, `staging`, etc.). Returns undefined when no matching
+ * branch exists. Required because `postgres list-endpoints` accepts the
+ * name segment but get-branch reports source_branch_id as the UID.
+ */
+function resolveBranchNameByUid(instance: string, uid: string): string | undefined {
+  try {
+    const raw = dbcli(["postgres", "list-branches", `projects/${instance}`, "-o", "json"]);
+    const parsed = JSON.parse(raw) as BranchMetadata[] | { branches?: BranchMetadata[]; items?: BranchMetadata[] };
+    const items = Array.isArray(parsed) ? parsed : parsed.branches ?? parsed.items ?? [];
+    const match = items.find((b) => b.uid === uid);
+    if (!match) return undefined;
+    return match.name?.split("/branches/").pop();
+  } catch {
+    return undefined;
+  }
 }
 
 interface BranchMetadata {
@@ -274,7 +297,9 @@ function findDefaultBranch(instance: string): string | undefined {
     const items = Array.isArray(parsed) ? parsed : parsed.branches ?? parsed.items ?? [];
     const def = items.find((b) => b.status?.default === true || b.is_default === true);
     if (!def) return undefined;
-    return def.uid ?? def.name?.split("/branches/").pop() ?? undefined;
+    // Prefer NAME (leaf of "projects/X/branches/Y") over UID — list-endpoints
+    // accepts the name segment but rejects bare UIDs as "branch id not found".
+    return def.name?.split("/branches/").pop() ?? def.uid ?? undefined;
   } catch {
     return undefined;
   }
