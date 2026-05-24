@@ -105,11 +105,17 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST || '' }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN || '' }}
+          # Force PAT auth. Databricks CLI v1.0+ rejects pre-v1 file-cache
+          # credentials on first call and won't fall back to DATABRICKS_TOKEN
+          # automatically when a legacy ~/.databricks/ cache is present
+          # (which it is on self-hosted runners that pre-date the v1 cutover).
+          # `pat` pins auth to DATABRICKS_TOKEN and bypasses the cache.
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID || '' }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_HEAD_REPO_FORK: ${{ github.event.pull_request.head.repo.fork }}
         run: |
-          export DATABRICKS_HOST DATABRICKS_TOKEN
+          export DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_AUTH_TYPE
           PR="${{ github.event.pull_request.number }}"
           CI_BRANCH_NAME="ci-pr-${PR}"
           echo "branch=${CI_BRANCH_NAME}" >> $GITHUB_OUTPUT
@@ -143,8 +149,13 @@ jobs:
             write_skip "**Reason:** Missing secrets (DATABRICKS_HOST, DATABRICKS_TOKEN, LAKEBASE_PROJECT_ID). **Fix:** Add them in repo Settings → Secrets."
             exit 0
           fi
-          if ! databricks current-user me -o json >/dev/null 2>&1; then
-            write_skip "**Reason:** Databricks authentication failed. Token may be expired."
+          # Capture stderr so the actual failure reason (expired token,
+          # incompatible credential cache, network error, etc.) reaches the
+          # job summary instead of being swallowed by 2>/dev/null.
+          AUTH_ERR="$(databricks current-user me -o json 2>&1 >/dev/null || true)"
+          if [ -n "$AUTH_ERR" ]; then
+            write_skip "**Reason:** Databricks authentication failed.\\n\\n\`\`\`\\n${AUTH_ERR}\\n\`\`\`"
+            echo "::error::Databricks auth failed: ${AUTH_ERR}"
             exit 0
           fi
           if [ -z "$PR_BASE_REF" ]; then
@@ -372,6 +383,7 @@ jobs:
           # invalid` warnings at request time.
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
         run: npx playwright test
 
       - name: Install PostgreSQL client (for schema dump)
@@ -395,6 +407,7 @@ jobs:
           CI_DB_PASSWORD: ${{ env.DB_PASSWORD }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST || '' }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN || '' }}
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID || '' }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |

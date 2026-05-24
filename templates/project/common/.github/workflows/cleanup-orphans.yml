@@ -25,14 +25,16 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
         run: |
           if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
             echo "::warning::Missing DATABRICKS_HOST or DATABRICKS_TOKEN. Skipping cleanup."
             exit 0
           fi
-          export DATABRICKS_HOST DATABRICKS_TOKEN
-          if ! databricks current-user me -o json >/dev/null 2>&1; then
-            echo "::error::Databricks authentication failed. Push from local to refresh token."
+          export DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_AUTH_TYPE
+          AUTH_ERR="$(databricks current-user me -o json 2>&1 >/dev/null || true)"
+          if [ -n "$AUTH_ERR" ]; then
+            echo "::error::Databricks authentication failed: ${AUTH_ERR}"
             exit 1
           fi
 
@@ -40,6 +42,7 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
           GH_TOKEN: ${{ github.token }}
         run: |

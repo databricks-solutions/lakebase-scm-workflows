@@ -100,6 +100,10 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # Force PAT auth so the CLI uses DATABRICKS_TOKEN and skips any
+          # legacy ~/.databricks/ cache that v1+ refuses to read. Self-
+          # hosted runners with older CLI installations have such a cache.
+          DATABRICKS_AUTH_TYPE: pat
         run: |
           if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
             echo "::error::DATABRICKS_HOST or DATABRICKS_TOKEN secret not set. Push from local to refresh: git push triggers pre-push hook which syncs the token."
@@ -107,9 +111,14 @@ jobs:
           fi
           echo "DATABRICKS_HOST=$DATABRICKS_HOST" >> $GITHUB_ENV
           echo "DATABRICKS_TOKEN=$DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "DATABRICKS_AUTH_TYPE=pat" >> $GITHUB_ENV
 
-          if ! databricks current-user me -o json >/dev/null 2>&1; then
-            echo "::error::Databricks authentication failed. Token may be expired. Push again from local to refresh."
+          # Capture stderr so the real reason (expired token, incompatible
+          # credential cache, etc.) surfaces in the run log instead of being
+          # swallowed by >/dev/null 2>&1.
+          AUTH_ERR="$(databricks current-user me -o json 2>&1 >/dev/null || true)"
+          if [ -n "$AUTH_ERR" ]; then
+            echo "::error::Databricks authentication failed: ${AUTH_ERR}"
             exit 1
           fi
           echo "Databricks authenticated."
@@ -352,6 +361,7 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
         run: |
           if [ -z "$DATABRICKS_HOST" ] || [ -z "$DATABRICKS_TOKEN" ]; then
             echo "::error::DATABRICKS_HOST or DATABRICKS_TOKEN secret not set."
@@ -359,9 +369,11 @@ jobs:
           fi
           echo "DATABRICKS_HOST=$DATABRICKS_HOST" >> $GITHUB_ENV
           echo "DATABRICKS_TOKEN=$DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "DATABRICKS_AUTH_TYPE=pat" >> $GITHUB_ENV
 
-          if ! databricks current-user me -o json >/dev/null 2>&1; then
-            echo "::error::Databricks authentication failed. Token may be expired."
+          AUTH_ERR="$(databricks current-user me -o json 2>&1 >/dev/null || true)"
+          if [ -n "$AUTH_ERR" ]; then
+            echo "::error::Databricks authentication failed: ${AUTH_ERR}"
             exit 1
           fi
           echo "Databricks authenticated."
