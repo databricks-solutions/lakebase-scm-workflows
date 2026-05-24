@@ -15,7 +15,7 @@ describe("GitHubSecretsError", () => {
   });
 });
 
-describe("setRepoSecrets, empty-value guard", () => {
+describe("setRepoSecrets – empty-value guard", () => {
   it("rejects empty secret values before making any API call", async () => {
     await expect(
       setRepoSecrets("foo/bar", { GOOD: "value", EMPTY: "" })

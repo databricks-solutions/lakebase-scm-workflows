@@ -1,7 +1,7 @@
 // Lakebase branch endpoint discovery.
 //
 // Reads endpoint metadata (host + state) for a branch. Does NOT mint
-// credentials, that stays in get-connection.ts (single seam, CI-enforced).
+// credentials – that stays in get-connection.ts (single seam, CI-enforced).
 // Composes with branch-utils.resolveBranchPath so callers can pass uid,
 // sanitized name, or full resource path.
 
@@ -61,7 +61,7 @@ export async function getEndpoint(args: GetEndpointArgs): Promise<EndpointInfo |
 
 /**
  * Build the canonical endpoint resource path that mintCredential expects.
- * Convenience helper, most callers go through getConnection() which builds
+ * Convenience helper – most callers go through getConnection() which builds
  * this internally.
  */
 export function endpointPath(instance: string, branch: string, endpointName = "primary"): string {
@@ -144,7 +144,7 @@ export interface GetCredentialArgs {
 /**
  * Mint a short-lived `{ token, email }` for a branch's endpoint. Resolves the
  * branch path (so caller can pass uid / sanitized name / full path), then
- * routes through `mintCredential` in get-connection.ts, the single credential
+ * routes through `mintCredential` in get-connection.ts – the single credential
  * seam. Useful for callers that want raw credentials rather than a DSN/Pool
  * (e.g. constructing a pg.Client with custom timeouts).
  */

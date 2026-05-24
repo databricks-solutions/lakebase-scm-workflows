@@ -31,7 +31,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return out;
 }
 
-const HELP = `lakebase-github-token, unified GitHub token resolver
+const HELP = `lakebase-github-token – unified GitHub token resolver
 
 Usage:
   lakebase-github-token                 print the resolved token on stdout

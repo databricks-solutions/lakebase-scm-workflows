@@ -1,5 +1,5 @@
 // GitHub Actions repo secret writes. Encrypts plaintext via the repo's
-// LibSodium public key (NaCl box seal), same wire format as `gh secret
+// LibSodium public key (NaCl box seal) – same wire format as `gh secret
 // set`. Ported from src/utils/githubSecrets.ts + src/services/githubService.ts.
 
 import { Octokit, RequestError } from "octokit";

@@ -9,7 +9,7 @@ reads to know what to fetch.
 
 Usage:
     python3 scripts/skills.py            # regenerate manifest.json
-    python3 scripts/skills.py validate   # CI mode, exit 1 on drift
+    python3 scripts/skills.py validate   # CI mode – exit 1 on drift
 
 Skill discovery rule: any directory under `skills/` containing a
 `SKILL.md` is a skill. Version comes from `SKILL.md` frontmatter's
@@ -34,7 +34,7 @@ MANIFEST_VERSION = "2"  # matches dev-hub's manifest.json shape
 
 def parse_skill_frontmatter(skill_md: Path) -> dict[str, Any]:
     """Pull `description`, `metadata.version`, and `experimental` from
-    a SKILL.md's YAML frontmatter. Light-touch parser, only handles
+    a SKILL.md's YAML frontmatter. Light-touch parser – only handles
     flat top-level keys + a one-level-deep `metadata:` block. Avoids a
     PyYAML dependency."""
     text = skill_md.read_text(encoding="utf-8")
@@ -141,7 +141,7 @@ def validate() -> int:
     actual = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     expected = build_manifest()
 
-    # Ignore the top-level updated_at, it changes every run. Per-skill
+    # Ignore the top-level updated_at – it changes every run. Per-skill
     # updated_at IS compared (it's tied to SKILL.md mtime, which changes
     # only when the skill content is edited).
     actual.pop("updated_at", None)

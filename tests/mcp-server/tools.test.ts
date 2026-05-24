@@ -1,6 +1,6 @@
 // Unit tests for the MCP server tool registry. These exercise the tool
 // surface (names, schemas, handlers) without speaking the MCP wire
-// protocol, that's covered by handshake.test.ts.
+// protocol – that's covered by handshake.test.ts.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

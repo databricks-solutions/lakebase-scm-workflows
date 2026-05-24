@@ -34,7 +34,7 @@ function makeFakeGitRepo(): string {
   return dir;
 }
 
-describe("checkoutPaired, shape", () => {
+describe("checkoutPaired – shape", () => {
   it("type signature accepts the documented args (compile-only)", () => {
     const fn: typeof checkoutPaired = checkoutPaired;
     expect(typeof fn).toBe("function");
@@ -59,7 +59,7 @@ describe("checkoutPaired, shape", () => {
   });
 });
 
-describe("checkoutPaired, input validation", () => {
+describe("checkoutPaired – input validation", () => {
   it("throws when no instance can be resolved (no .env, no --instance)", async () => {
     const dir = makeFakeGitRepo();
     try {
@@ -88,7 +88,7 @@ describe("checkoutPaired, input validation", () => {
   });
 });
 
-describe.skipIf(!live)("checkoutPaired, destructive live E2E", () => {
+describe.skipIf(!live)("checkoutPaired – destructive live E2E", () => {
   // Live E2E here only covers the FEATURE mode against an existing test branch.
   // Trunk and staging modes need workspace-specific aliases configured; skip
   // those at the live tier and rely on integration tests in the extension.
@@ -125,16 +125,16 @@ describe.skipIf(!live)("checkoutPaired, destructive live E2E", () => {
   }, 180_000);
 });
 
-describe("checkoutPaired, skip-when-env-missing", () => {
+describe("checkoutPaired – skip-when-env-missing", () => {
   it("documents the skip reason when destructive E2E is gated off", () => {
     if (live) return;
     // eslint-disable-next-line no-console
     console.log(
       !cliAvailable
-        ? "`databricks` CLI not available, destructive checkoutPaired E2E skipped."
+        ? "`databricks` CLI not available – destructive checkoutPaired E2E skipped."
         : !TEST_E2E
-          ? "LAKEBASE_TEST_E2E!=1, destructive checkoutPaired E2E skipped."
-          : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, destructive checkoutPaired E2E skipped."
+          ? "LAKEBASE_TEST_E2E!=1 – destructive checkoutPaired E2E skipped."
+          : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set – destructive checkoutPaired E2E skipped."
     );
     expect(live).toBe(false);
   });

@@ -2,7 +2,7 @@
  * Reference Playwright config for full-stack Lakebase projects.
  *
  * Copy to `client/playwright.config.ts` and adapt. The important bit is
- * the `webServer: []` array, both the frontend dev server AND the
+ * the `webServer: []` array – both the frontend dev server AND the
  * backend must be booted so the frontend's `/api/*` proxy has a target.
  *
  * Without the backend entry, CI hits:
@@ -21,7 +21,7 @@
  * `reuseExistingServer: !process.env.CI` keeps local dev fast (Playwright
  * reuses your already-running servers) while CI hard-fails if the port is
  * bound (a self-hosted runner with a stale local dev server is the usual
- * culprit, kill it and rerun).
+ * culprit – kill it and rerun).
  */
 import { defineConfig, devices } from '@playwright/test'
 
@@ -45,7 +45,7 @@ export default defineConfig({
     },
   ],
   webServer: [
-    // Backend, start FIRST so Vite's proxy target is up before the
+    // Backend – start FIRST so Vite's proxy target is up before the
     // frontend tries to render. Playwright boots entries in parallel,
     // but the order is preserved for ready-check polling.
     {
@@ -63,14 +63,14 @@ export default defineConfig({
         // Pipe Databricks SDK creds from the GH Actions job's env (which
         // pr.yml populates from repo secrets). Anything the backend needs
         // for SDK calls (AI endpoints, Unity Catalog volumes, etc.) should
-        // come from env here, don't rely on the runner's local CLI auth,
+        // come from env here – don't rely on the runner's local CLI auth,
         // which silently expires and produces `refresh token is invalid`
         // warnings 30+ minutes into a run.
         DATABRICKS_HOST: process.env.DATABRICKS_HOST ?? '',
         DATABRICKS_TOKEN: process.env.DATABRICKS_TOKEN ?? '',
       },
     },
-    // Frontend, proxies `/api/*` to the backend.
+    // Frontend – proxies `/api/*` to the backend.
     {
       command: 'npm run dev',
       url: 'http://localhost:5173',

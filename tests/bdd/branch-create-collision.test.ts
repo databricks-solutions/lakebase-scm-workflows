@@ -2,7 +2,7 @@
 //
 // Live behavior is exercised by branch-create-delete.test.ts (which needs
 // LAKEBASE_TEST_INSTANCE/PARENT and a real workspace). These cases run on
-// every commit because they mock the substrate's CLI/lookup helpers, no
+// every commit because they mock the substrate's CLI/lookup helpers – no
 // Lakebase or git account needed.
 //
 // What we're guarding:
@@ -46,7 +46,7 @@ function fakeBranch(leaf: string, sourceLeaf: string | undefined): LakebaseBranc
   } as LakebaseBranchInfo;
 }
 
-describe("createBranch, collision-vs-idempotency contract", () => {
+describe("createBranch – collision-vs-idempotency contract", () => {
   beforeEach(() => {
     mockGetBranchByName.mockReset();
     mockGetDefaultBranch.mockReset();
@@ -97,7 +97,7 @@ describe("createBranch, collision-vs-idempotency contract", () => {
     // Older branches created before the substrate started recording
     // spec.source_branch may report sourceBranchName as undefined.
     // Treat as "indeterminate, fall through to idempotent return"
-    // rather than throwing, refusing the retry would surprise users
+    // rather than throwing – refusing the retry would surprise users
     // upgrading from older substrate revs.
     const existing = fakeBranch("feature-foo", undefined);
     mockGetBranchByName.mockResolvedValue(existing);

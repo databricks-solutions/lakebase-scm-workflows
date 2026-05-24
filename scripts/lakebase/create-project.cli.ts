@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CLI wrapper around createProject. Supports two input modes:
-//   --json-input '<json>', single JSON arg with all CreateProjectArgs
-//   <named flags>, individual --project-name, --parent-dir, etc.
+//   --json-input '<json>'  – single JSON arg with all CreateProjectArgs
+//   <named flags>          – individual --project-name, --parent-dir, etc.
 //
 // Output: JSON to stdout containing CreateProjectResult. Progress goes to
 // stderr.
@@ -64,7 +64,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return out;
 }
 
-const HELP = `lakebase-create-project, bootstrap a fresh Lakebase-paired project
+const HELP = `lakebase-create-project – bootstrap a fresh Lakebase-paired project
 
 Usage:
   lakebase-create-project --project-name <name> --parent-dir <dir> --databricks-host <url> [--github-owner <owner>] [flags...]

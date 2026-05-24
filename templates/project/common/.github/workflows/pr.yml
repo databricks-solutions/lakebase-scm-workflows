@@ -136,7 +136,7 @@ jobs:
           echo "  DATABRICKS_TOKEN: $([ -n "$DATABRICKS_TOKEN" ] && echo 'set' || echo 'NOT SET')"
           echo "  LAKEBASE_PROJECT_ID: $([ -n "$LAKEBASE_PROJECT_ID" ] && echo 'set' || echo 'NOT SET')"
 
-          # Preflight, bail cleanly with an actionable summary if we can't proceed
+          # Preflight – bail cleanly with an actionable summary if we can't proceed
           if [ "$PR_HEAD_REPO_FORK" = "true" ]; then
             write_skip "**Reason:** PR is from a fork. GitHub does not pass repo secrets to fork PRs. **Fix:** Push your branch to this repo and open the PR from here."
             exit 0
@@ -174,7 +174,7 @@ jobs:
           #
           # --github-env writes tokens/DATABASE_URL to $GITHUB_ENV (visible to
           # subsequent steps) AND prints non-secret key='value' lines to stdout
-          # (captured + evaled below so they're visible IN THIS STEP too.
+          # (captured + evaled below so they're visible IN THIS STEP too –
           # $GITHUB_ENV writes don't take effect until the next step).
           if ! HELPER_OUT="$(./scripts/ci/resolve-lakebase-branch.sh \
                 --lakebase-name "$CI_BRANCH_NAME" \
@@ -190,7 +190,7 @@ jobs:
           # JDBC_URL, LAKEBASE_BRANCH_STATUS, LAKEBASE_BRANCH_SOURCE,
           # LAKEBASE_USERNAME are now set in this shell. Mirror the critical
           # ones to step outputs for downstream jobs + conditional steps.
-          # (Secrets stay in $GITHUB_ENV, downstream steps read them via
+          # (Secrets stay in $GITHUB_ENV – downstream steps read them via
           # env.DB_PASSWORD rather than step outputs.)
           echo "url=${JDBC_URL}" >> $GITHUB_OUTPUT
           echo "username=${LAKEBASE_USERNAME}" >> $GITHUB_OUTPUT
@@ -200,12 +200,12 @@ jobs:
           # forked (or verified the existing fork points at X).
           case "$LAKEBASE_BRANCH_STATUS" in
             CREATED)    ACTION="newly created, forked from Lakebase '$LAKEBASE_BRANCH_SOURCE' pair of git '$PR_BASE_REF'" ;;
-            RECREATED)  ACTION="existed with wrong source, deleted and re-forked from Lakebase '$LAKEBASE_BRANCH_SOURCE' pair of git '$PR_BASE_REF'" ;;
-            VERIFIED)   ACTION="already existed, source '$LAKEBASE_BRANCH_SOURCE' matches parent, reused" ;;
-            UNVERIFIED) ACTION="already existed but API did not report a source_branch, reused without verification" ;;
+            RECREATED)  ACTION="existed with wrong source – deleted and re-forked from Lakebase '$LAKEBASE_BRANCH_SOURCE' pair of git '$PR_BASE_REF'" ;;
+            VERIFIED)   ACTION="already existed, source '$LAKEBASE_BRANCH_SOURCE' matches parent – reused" ;;
+            UNVERIFIED) ACTION="already existed but API did not report a source_branch – reused without verification" ;;
             *)          ACTION="status=$LAKEBASE_BRANCH_STATUS (source=$LAKEBASE_BRANCH_SOURCE)" ;;
           esac
-          echo "Lakebase: CI branch $CI_BRANCH_NAME ready, ${ACTION}."
+          echo "Lakebase: CI branch $CI_BRANCH_NAME ready – ${ACTION}."
           {
             echo "## Lakebase CI branch: $LAKEBASE_BRANCH_STATUS"
             echo "| | |"
@@ -352,7 +352,7 @@ jobs:
               npm test
             fi
           else
-            echo "::error::No CI branch URL, cannot run tests without a database. Check the 'Create CI database branch' step for details."
+            echo "::error::No CI branch URL – cannot run tests without a database. Check the 'Create CI database branch' step for details."
             exit 1
           fi
 
@@ -544,7 +544,7 @@ jobs:
           cat "$MD" >> $GITHUB_STEP_SUMMARY
           echo "path=$MD" >> $GITHUB_OUTPUT
 
-      # Pass schema diff via job output (no artifact upload, avoids storage quota)
+      # Pass schema diff via job output (no artifact upload – avoids storage quota)
       - name: Export schema diff to output
         id: schema-diff-export
         if: success() && steps.datasource.outputs.ci_branch_used == 'true' && steps.schema-diff.outcome == 'success'
@@ -564,7 +564,7 @@ jobs:
         env:
           SCHEMA_DIFF_B64: ${{ needs.build-and-test.outputs.schema_diff_b64 }}
         run: echo "$SCHEMA_DIFF_B64" | (base64 -d 2>/dev/null || base64 -D) > schema-diff.md
-      - name: Comment on PR (success, ready for test)
+      - name: Comment on PR (success – ready for test)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -598,7 +598,7 @@ jobs:
     if: failure() && needs.build-and-test.result == 'failure'
     steps:
       - uses: actions/checkout@v4
-      - name: Comment on PR (notify committer, build or tests failed)
+      - name: Comment on PR (notify committer – build or tests failed)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,5 +1,5 @@
 // GitHub repo CRUD via Octokit. Narrow surface ported from
-// src/services/githubService.ts, only the methods create-project needs.
+// src/services/githubService.ts – only the methods create-project needs.
 // All Octokit instances resolve their token through the unified seam
 // (scripts/github/auth.ts, FEIP-7068).
 

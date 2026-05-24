@@ -1,4 +1,4 @@
-// Post-scaffold health checks, verify that the expected git hooks and
+// Post-scaffold health checks – verify that the expected git hooks and
 // GitHub Actions workflows landed on disk. Same shape the extension's
 // ScaffoldService exposes; the result drives the "Warning: some hooks not
 // installed" surface in create-project's final step.

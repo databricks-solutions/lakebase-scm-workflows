@@ -9,7 +9,7 @@
 //                   supplies a workspace client)
 //
 // No other file in this codebase should shell out to
-// `databricks postgres generate-database-credential`, a CI grep guard
+// `databricks postgres generate-database-credential` – a CI grep guard
 // (.github/workflows/grep-guard.yml) fails the build if it appears outside
 // this module.
 
@@ -33,7 +33,7 @@ export interface GetConnectionArgs {
    */
   branch: string;
   /**
-   * Endpoint identifier on the branch. Defaults to "primary", the only
+   * Endpoint identifier on the branch. Defaults to "primary" – the only
    * value the extension uses today (see lakebaseService.getCredential).
    */
   endpointName?: string;
@@ -108,7 +108,7 @@ export async function resolveEndpointHost(instance: string, branch: string): Pro
   }
   const host = endpoints[0]?.status?.hosts?.host;
   if (!host) {
-    throw new Error(`Endpoint exists for ${branchPath} but has no host yet, wait for it to become ACTIVE`);
+    throw new Error(`Endpoint exists for ${branchPath} but has no host yet – wait for it to become ACTIVE`);
   }
   return host;
 }
@@ -118,7 +118,7 @@ export async function resolveEndpointHost(instance: string, branch: string): Pro
  *
  * This is the ONLY function that should call
  * `databricks postgres generate-database-credential` anywhere in the codebase.
- * A CI grep guard enforces that, every other workflow op (schema queries,
+ * A CI grep guard enforces that – every other workflow op (schema queries,
  * direct pg.Pool construction, DSN building) must go through this helper.
  *
  * @param endpointPath Full Lakebase endpoint resource path

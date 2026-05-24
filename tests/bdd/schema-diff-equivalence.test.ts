@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { getSchemaDiff } from "../../scripts/lakebase/schema-diff.js";
 
 // Skip-when-env-missing. See get-connection-dsn.test.ts for the env contract.
-// schema-diff additionally needs a second branch to compare against, set
+// schema-diff additionally needs a second branch to compare against – set
 // LAKEBASE_TEST_COMPARISON_BRANCH to pin it, or leave unset and let the
 // resolver pick up the target's source-branch / default-branch.
 const INSTANCE = process.env.LAKEBASE_TEST_INSTANCE;
@@ -14,7 +14,7 @@ const skip = !INSTANCE || !BRANCH;
 // schema-diff's getConnection retries up to ~16s on transient
 // "branch id not found" / endpoint-not-yet-provisioned errors (substrate
 // option C). Tests that run against freshly-created branches need a
-// timeout budget that comfortably exceeds the retry window, vitest's 5s
+// timeout budget that comfortably exceeds the retry window – vitest's 5s
 // default trips before the first successful endpoint lookup. 60s is two
 // retry cycles plus connect+query slack.
 const LIVE_TEST_TIMEOUT_MS = 60_000;
@@ -61,7 +61,7 @@ describe.skipIf(skip)("schema-diff against real Lakebase", () => {
     // endpoint. (b) is a substrate concern: getConnection retries on
     // transient "branch id not found" so the test's empty=empty fork
     // reaches the happy path. The test deliberately does NOT exempt the
-    // error case, if it surfaces, that's a real substrate regression.
+    // error case – if it surfaces, that's a real substrate regression.
     expect(result.error).toBeUndefined();
     if (result.created.length === 0 && result.modified.length === 0 && result.removed.length === 0) {
       expect(result.inSync).toBe(true);
@@ -95,7 +95,7 @@ describe("schema-diff (skip-when-env-missing)", () => {
     if (!skip) return;
     // eslint-disable-next-line no-console
     console.log(
-      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, schema-diff live suite skipped."
+      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set – schema-diff live suite skipped."
     );
     expect(skip).toBe(true);
   });

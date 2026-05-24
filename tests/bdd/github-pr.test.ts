@@ -26,7 +26,7 @@ describe("GitHubPullRequestError", () => {
   });
 });
 
-describe("github/pr, signatures (compile-only)", () => {
+describe("github/pr – signatures (compile-only)", () => {
   it("exposes the primitive PR functions", () => {
     expect(typeof createPullRequest).toBe("function");
     expect(typeof getPullRequest).toBe("function");
@@ -43,7 +43,7 @@ describe("github/pr, signatures (compile-only)", () => {
   });
 });
 
-describe("github/pr, type shape sanity", () => {
+describe("github/pr – type shape sanity", () => {
   it("PullRequestInfo has the documented fields", () => {
     const sample: PullRequestInfo = {
       number: 1,
@@ -79,7 +79,7 @@ describe("github/pr, type shape sanity", () => {
   });
 });
 
-describe("github/pr, graceful no-token degradation", () => {
+describe("github/pr – graceful no-token degradation", () => {
   // These functions catch RequestError and return [] / undefined for "read"
   // semantics so callers can use them in optional contexts (e.g. an extension
   // surface that hasn't authenticated yet). Verify the contract.
@@ -87,7 +87,7 @@ describe("github/pr, graceful no-token degradation", () => {
     const noToken = !process.env.GITHUB_TOKEN;
     if (!noToken) {
       // eslint-disable-next-line no-console
-      console.log("GITHUB_TOKEN set, skipping no-token degradation check");
+      console.log("GITHUB_TOKEN set – skipping no-token degradation check");
       return;
     }
     // Use a clearly non-existent owner/repo so we don't accidentally hit a real one

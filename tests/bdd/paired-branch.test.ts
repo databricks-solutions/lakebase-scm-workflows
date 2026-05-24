@@ -20,7 +20,7 @@ const TEST_PARENT = process.env.LAKEBASE_TEST_PARENT;
 const TEST_E2E = process.env.LAKEBASE_TEST_E2E === "1";
 const live = cliAvailable && !!TEST_INSTANCE && !!TEST_PARENT && TEST_E2E;
 
-describe("paired-branch, shape", () => {
+describe("paired-branch – shape", () => {
   it("createPairedBranch signature accepts the documented args (compile-only)", () => {
     const fn: typeof createPairedBranch = createPairedBranch;
     expect(typeof fn).toBe("function");
@@ -37,7 +37,7 @@ describe("paired-branch, shape", () => {
   });
 });
 
-describe.skipIf(!live)("paired-branch, destructive E2E", () => {
+describe.skipIf(!live)("paired-branch – destructive E2E", () => {
   it("create + delete a paired branch end-to-end (Lakebase only, --no-git)", async () => {
     // E2E here exercises the LAKEBASE side of the pairing without touching
     // an actual git repo (the function honors createGitBranch=false).
@@ -65,16 +65,16 @@ describe.skipIf(!live)("paired-branch, destructive E2E", () => {
   }, 300_000);
 });
 
-describe("paired-branch, skip-when-env-missing", () => {
+describe("paired-branch – skip-when-env-missing", () => {
   it("documents the skip reason when destructive E2E is gated off", () => {
     if (live) return;
     // eslint-disable-next-line no-console
     console.log(
       !cliAvailable
-        ? "`databricks` CLI not available, destructive paired-branch E2E skipped."
+        ? "`databricks` CLI not available – destructive paired-branch E2E skipped."
         : !TEST_E2E
-          ? "LAKEBASE_TEST_E2E!=1, destructive paired-branch E2E skipped."
-          : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_PARENT not set, destructive paired-branch E2E skipped."
+          ? "LAKEBASE_TEST_E2E!=1 – destructive paired-branch E2E skipped."
+          : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_PARENT not set – destructive paired-branch E2E skipped."
     );
     expect(live).toBe(false);
   });

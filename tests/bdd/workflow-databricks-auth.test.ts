@@ -8,7 +8,7 @@ import * as yaml from "js-yaml";
 // any runner with a pre-v1 ~/.databricks/ cache present (self-hosted Mac
 // runners that pre-date the v1 cutover), `databricks current-user me`
 // errors out before the PAT is consulted. The fix is `DATABRICKS_AUTH_TYPE: pat`
-// in every env block that sets DATABRICKS_TOKEN, that pins auth to the PAT
+// in every env block that sets DATABRICKS_TOKEN – that pins auth to the PAT
 // and bypasses the cache.
 //
 // This was discovered by python-devloop integration test: pr.yml's preflight
@@ -52,7 +52,7 @@ function walkSteps(wf: Workflow): { jobName: string; stepIdx: number; step: Step
 
 const WORKFLOW_FILES = ["pr.yml", "merge.yml", "cleanup-orphans.yml"];
 
-describe("workflow templates, DATABRICKS_AUTH_TYPE pinned to pat", () => {
+describe("workflow templates – DATABRICKS_AUTH_TYPE pinned to pat", () => {
   for (const file of WORKFLOW_FILES) {
     it(`${file}: every env block with DATABRICKS_TOKEN also sets DATABRICKS_AUTH_TYPE: pat`, () => {
       const wf = loadWorkflow(file);
@@ -64,7 +64,7 @@ describe("workflow templates, DATABRICKS_AUTH_TYPE pinned to pat", () => {
         const authType = step.env.DATABRICKS_AUTH_TYPE;
         if (authType !== "pat") {
           const stepLabel = step.name ?? `step[${stepIdx}]`;
-          offenders.push(`  - ${jobName} / "${stepLabel}", DATABRICKS_AUTH_TYPE=${JSON.stringify(authType ?? "<unset>")}`);
+          offenders.push(`  - ${jobName} / "${stepLabel}" – DATABRICKS_AUTH_TYPE=${JSON.stringify(authType ?? "<unset>")}`);
         }
       }
       if (offenders.length > 0) {
@@ -80,7 +80,7 @@ describe("workflow templates, DATABRICKS_AUTH_TYPE pinned to pat", () => {
   }
 });
 
-describe("workflow templates, preflight surfaces auth stderr", () => {
+describe("workflow templates – preflight surfaces auth stderr", () => {
   // The original failure mode was `databricks current-user me >/dev/null 2>&1`
   // discarding the actual error string. Every preflight that calls
   // `databricks current-user me` must capture stderr so the run log shows

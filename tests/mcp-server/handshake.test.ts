@@ -77,7 +77,7 @@ class McpClient {
 
 describe("MCP server stdio handshake", () => {
   if (!existsSync(SERVER_PATH)) {
-    it.skip("dist not built, run `npm run build` to enable handshake test", () => {});
+    it.skip("dist not built – run `npm run build` to enable handshake test", () => {});
     return;
   }
 

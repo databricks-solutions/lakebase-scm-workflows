@@ -44,7 +44,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return out;
 }
 
-const HELP = `lakebase-schema-diff, parent-aware schema diff between two Lakebase branches
+const HELP = `lakebase-schema-diff – parent-aware schema diff between two Lakebase branches
 
 Usage:
   lakebase-schema-diff --instance <id> --branch <name> [--against <parent>] [--database <db>] [--pretty]

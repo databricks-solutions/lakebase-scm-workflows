@@ -23,7 +23,7 @@ const TEST_INSTANCE = process.env.LAKEBASE_TEST_INSTANCE;
 const TEST_PARENT = process.env.LAKEBASE_TEST_PARENT;
 const live = cliAvailable && !!TEST_INSTANCE && !!TEST_PARENT;
 
-describe.skipIf(!live)("branch-create + delete, destructive live test", () => {
+describe.skipIf(!live)("branch-create + delete – destructive live test", () => {
   it("creates a fresh Lakebase branch reaching READY, then deletes it", async () => {
     const branchName = `lbscm-test-${Date.now()}`;
     const created = await createBranch({
@@ -40,7 +40,7 @@ describe.skipIf(!live)("branch-create + delete, destructive live test", () => {
   }, 240_000);
 });
 
-describe("branch-create / delete, shape + error wrapping", () => {
+describe("branch-create / delete – shape + error wrapping", () => {
   it("LakebaseBranchError carries the right name", () => {
     const err = new LakebaseBranchError("oops");
     expect(err.name).toBe("LakebaseBranchError");
@@ -52,14 +52,14 @@ describe("branch-create / delete, shape + error wrapping", () => {
   });
 });
 
-describe("branch-create / delete, skip-when-env-missing", () => {
+describe("branch-create / delete – skip-when-env-missing", () => {
   it("documents the skip reason when LAKEBASE_TEST_INSTANCE/PARENT or CLI missing", () => {
     if (live) return;
     // eslint-disable-next-line no-console
     console.log(
       !cliAvailable
-        ? "`databricks` CLI not available, live branch-create/delete suite skipped."
-        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_PARENT not set, live destructive suite skipped."
+        ? "`databricks` CLI not available – live branch-create/delete suite skipped."
+        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_PARENT not set – live destructive suite skipped."
     );
     expect(live).toBe(false);
   });

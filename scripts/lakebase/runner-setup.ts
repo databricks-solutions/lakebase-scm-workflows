@@ -5,11 +5,11 @@
 // Runner instances live at ~/.lakebase/runners/<projectName>/.
 //
 // Two public functions:
-//   setupRunner, download + configure + start
-//   removeRunner, stop + deregister + delete on-disk
+//   setupRunner  – download + configure + start
+//   removeRunner – stop + deregister + delete on-disk
 //
 // The preflightDatabricksAuth check from the extension is INTENTIONALLY
-// not ported, it reads workspace .env and surfaces a VS Code-toned
+// not ported – it reads workspace .env and surfaces a VS Code-toned
 // warning. Agent callers should run their own auth probe before invoking
 // setupRunner if they care.
 
@@ -246,21 +246,21 @@ export async function setupRunner(args: SetupRunnerArgs): Promise<RunnerInfo> {
       urlMismatch = true;
     }
     if (urlMismatch) {
-      report("Runner configured against a different repo, resetting...");
+      report("Runner configured against a different repo – resetting...");
       resetRunnerConfig(dir, args.projectName);
       needsConfig = true;
     } else {
       try {
         const id = await getRunnerIdByName(args.fullRepoName, name);
         if (!id) {
-          report("Runner registration stale, reconfiguring...");
+          report("Runner registration stale – reconfiguring...");
           resetRunnerConfig(dir, args.projectName);
           needsConfig = true;
         } else {
-          report("Runner already configured, restarting...");
+          report("Runner already configured – restarting...");
         }
       } catch {
-        report("Could not verify runner, reconfiguring...");
+        report("Could not verify runner – reconfiguring...");
         resetRunnerConfig(dir, args.projectName);
         needsConfig = true;
       }

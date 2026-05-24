@@ -40,7 +40,7 @@ describe("extractZipToDir", () => {
 
     const dir = mkTmp();
     extractZipToDir(buf, dir);
-    // No "demo/" prefix, contents were hoisted.
+    // No "demo/" prefix – contents were hoisted.
     expect(fs.existsSync(path.join(dir, "pom.xml"))).toBe(true);
     expect(fs.existsSync(path.join(dir, "src", "main", "java", "App.java"))).toBe(true);
     expect(fs.existsSync(path.join(dir, "demo"))).toBe(false);

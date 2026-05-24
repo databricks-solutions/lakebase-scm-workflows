@@ -1,7 +1,7 @@
 // .env emission for a freshly-scaffolded Lakebase-paired project + per-branch
 // connection updates.
 //
-// `writeEnvFile` mirrors ProjectCreationService.writeEnvFile, initial scaffold
+// `writeEnvFile` mirrors ProjectCreationService.writeEnvFile – initial scaffold
 // with commented placeholders. `updateEnvConnection` mirrors the algorithm in
 // templates/.../post-checkout.sh: strip the four connection lines, append
 // fresh ones, preserve everything else.
@@ -78,7 +78,7 @@ const CONNECTION_KEYS = [
  *   2. Drop any line starting with one of the four connection keys
  *   3. Append the fresh block (with optional leading comment)
  *
- * If the file doesn't exist, it's created with just the connection block.
+ * If the file doesn't exist, it's created with just the connection block –
  * caller can subsequently writeEnvFile() to add the project-level keys.
  */
 export function updateEnvConnection(args: UpdateEnvConnectionArgs): void {

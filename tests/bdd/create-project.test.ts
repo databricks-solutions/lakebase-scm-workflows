@@ -53,7 +53,7 @@ describe("createProject input validation", () => {
 
 const liveE2E = process.env.LAKEBASE_TEST_E2E === "1";
 
-describe.skipIf(!liveE2E)("createProject, live end-to-end (LAKEBASE_TEST_E2E=1)", () => {
+describe.skipIf(!liveE2E)("createProject – live end-to-end (LAKEBASE_TEST_E2E=1)", () => {
   // createProject does Lakebase create + branch resolve + scaffold + commit +
   // health check end-to-end. On a cold workspace it routinely takes 30-60s,
   // well past vitest's 5s default. Bump to 3 min so a transient slow Lakebase
@@ -61,7 +61,7 @@ describe.skipIf(!liveE2E)("createProject, live end-to-end (LAKEBASE_TEST_E2E=1)"
   const E2E_TIMEOUT_MS = 180_000;
 
   // Track every Lakebase project we create so afterEach can tear it down.
-  // Without this every E2E retry leaks a project, the ones the suite ran
+  // Without this every E2E retry leaks a project – the ones the suite ran
   // through before this guard left orphans behind for a manual reaper.
   let createdProjectIds: Array<{ id: string; host: string }> = [];
 
@@ -70,7 +70,7 @@ describe.skipIf(!liveE2E)("createProject, live end-to-end (LAKEBASE_TEST_E2E=1)"
       try {
         await deleteLakebaseProject({ projectId: id, host });
       } catch {
-        // best-effort, leaks should be caught by reapOrphanProjects style
+        // best-effort – leaks should be caught by reapOrphanProjects style
         // sweeps in the consumer test harness (ecom integration test).
       }
     }
@@ -103,12 +103,12 @@ describe.skipIf(!liveE2E)("createProject, live end-to-end (LAKEBASE_TEST_E2E=1)"
   }, E2E_TIMEOUT_MS);
 });
 
-describe("createProject, skip-when-e2e-disabled", () => {
+describe("createProject – skip-when-e2e-disabled", () => {
   it("documents the skip reason when LAKEBASE_TEST_E2E is unset", () => {
     if (liveE2E) return;
     // eslint-disable-next-line no-console
     console.log(
-      "LAKEBASE_TEST_E2E not set, live create-project end-to-end test skipped (destructive)."
+      "LAKEBASE_TEST_E2E not set – live create-project end-to-end test skipped (destructive)."
     );
     expect(liveE2E).toBe(false);
   });

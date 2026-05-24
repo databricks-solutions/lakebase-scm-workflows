@@ -12,7 +12,7 @@
 #   --create-from <parent>       Create the Lakebase branch from <parent>'s Lakebase
 #                                clone if it doesn't exist. <parent> is a GIT branch
 #                                name (main / staging / ...). No-op if branch exists.
-#   --lakebase-name <name>       Skip mapping, use this exact Lakebase branch name
+#   --lakebase-name <name>       Skip mapping – use this exact Lakebase branch name
 #                                (overrides --git-branch mapping). Useful for ci-pr-N.
 #   --github-env                 Append env vars to $GITHUB_ENV instead of stdout.
 #   --ensure-endpoint            Create the primary endpoint if it doesn't exist.
@@ -28,28 +28,28 @@
 # Optional env:  LAKEBASE_DB_NAME (default: databricks_postgres)
 #
 # Outputs (shell key=value OR appended to $GITHUB_ENV):
-#   LAKEBASE_BRANCH_NAME: e.g. "staging" / "feature-foo" / "ci-pr-42"
-#   LAKEBASE_BRANCH_PATH, projects/<id>/branches/<name>
-#   LAKEBASE_BRANCH_STATUS, one of: CREATED (new), VERIFIED (existed + source
+#   LAKEBASE_BRANCH_NAME   – e.g. "staging" / "feature-foo" / "ci-pr-42"
+#   LAKEBASE_BRANCH_PATH   – projects/<id>/branches/<name>
+#   LAKEBASE_BRANCH_STATUS – one of: CREATED (new), VERIFIED (existed + source
 #                                     matched), RECREATED (existed but wrong
 #                                     source, deleted + re-forked), EXISTS
 #                                     (existed, source not verified because
 #                                     --create-from not given), UNVERIFIED
 #                                     (existed but API did not report a
-#                                     source_branch, can't confirm parent)
-#   LAKEBASE_BRANCH_SOURCE, the actual source branch name (or empty)
-#   LAKEBASE_HOST, endpoint hostname
-#   LAKEBASE_USERNAME, user email (OAuth "user" for psql)
-#   LAKEBASE_PASSWORD      (OAuth token (secret) never echo to logs)
-#   DATABASE_URL, postgresql:// URL with embedded creds
-#   JDBC_URL, jdbc:postgresql:// URL (no creds; Java auth uses DB_USERNAME/DB_PASSWORD)
+#                                     source_branch – can't confirm parent)
+#   LAKEBASE_BRANCH_SOURCE – the actual source branch name (or empty)
+#   LAKEBASE_HOST          – endpoint hostname
+#   LAKEBASE_USERNAME      – user email (OAuth "user" for psql)
+#   LAKEBASE_PASSWORD      – OAuth token (secret – never echo to logs)
+#   DATABASE_URL           – postgresql:// URL with embedded creds
+#   JDBC_URL               – jdbc:postgresql:// URL (no creds; Java auth uses DB_USERNAME/DB_PASSWORD)
 
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SANITIZE="${SCRIPT_DIR}/../sanitize-branch-name.sh"
 [ -x "$SANITIZE" ] || {
-  echo "resolve-lakebase-branch: cannot find $SANITIZE, scripts/sanitize-branch-name.sh must exist and be executable" >&2
+  echo "resolve-lakebase-branch: cannot find $SANITIZE – scripts/sanitize-branch-name.sh must exist and be executable" >&2
   exit 1
 }
 
@@ -318,7 +318,7 @@ if [ "$GH_ENV_MODE" = "1" ] && [ -n "${GITHUB_ENV:-}" ]; then
   # Also emit NON-SECRET vars to stdout as shell key='value' lines so the
   # caller can `eval` them and get access WITHIN THE SAME STEP (writes to
   # $GITHUB_ENV only take effect in subsequent steps). Tokens and DATABASE_URL
-  # (which embeds the token) are deliberately omitted, those stay in
+  # (which embeds the token) are deliberately omitted – those stay in
   # $GITHUB_ENV and reach downstream steps via env-context masking.
   cat <<EOF
 LAKEBASE_BRANCH_NAME='${LAKEBASE_NAME}'

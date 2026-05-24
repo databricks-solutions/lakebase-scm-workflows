@@ -81,7 +81,7 @@ describe("updateEnvConnection", () => {
       databaseUrl: "",
       username: "",
       password: "",
-      comment: "# Connection pending, branch still provisioning",
+      comment: "# Connection pending – branch still provisioning",
     });
     const content = fs.readFileSync(envPath, "utf-8");
     expect(content).toContain("# Connection pending");

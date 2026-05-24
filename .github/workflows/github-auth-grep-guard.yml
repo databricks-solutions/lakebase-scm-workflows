@@ -1,4 +1,4 @@
-name: Grep guard, single GitHub auth seam
+name: Grep guard – single GitHub auth seam
 
 # CI invariant: only scripts/github/auth.ts is allowed to mint a GitHub token
 # directly. Every other call site must go through resolveGitHubToken().
@@ -62,4 +62,4 @@ jobs:
             echo "See docs/github-auth.md."
             exit 1
           fi
-          echo "OK, only scripts/github/auth.ts resolves GitHub tokens."
+          echo "OK – only scripts/github/auth.ts resolves GitHub tokens."

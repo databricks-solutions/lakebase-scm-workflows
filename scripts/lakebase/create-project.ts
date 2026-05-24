@@ -1,4 +1,4 @@
-// Orchestrator for `lakebase create-project`, bootstrap a fresh
+// Orchestrator for `lakebase create-project` – bootstrap a fresh
 // Lakebase-paired project.
 //
 // Wired in FEIP-7071. All NotYetPortedError stubs are now real calls to
@@ -29,7 +29,7 @@ export interface CreateProjectArgs {
   parentDir: string;
   /** Databricks workspace host URL (trailing slashes are stripped). */
   databricksHost: string;
-  /** GitHub owner, required when createGithubRepo is true. */
+  /** GitHub owner – required when createGithubRepo is true. */
   githubOwner?: string;
   /** Whether to create a GitHub repository (default: true). */
   createGithubRepo?: boolean;
@@ -54,18 +54,18 @@ export type ProgressCallback = (step: string, detail?: string) => void;
 /**
  * Orchestrate the 10-step project creation.
  *
- *   1. Create GitHub repo (Octokit), useGithub only
- *   2. Wait for repo visibility (SAML/propagation), useGithub only
+ *   1. Create GitHub repo (Octokit) – useGithub only
+ *   2. Wait for repo visibility (SAML/propagation) – useGithub only
  *   3. Clone repo OR git init local dir
  *   4. Create Lakebase project (databricks postgres create-project)
  *   5. Resolve default branch id
  *   6. Scaffold templates (common + language-specific via Spring Initializr or static).
- *      Ships .env.example only, .env is never written or committed by this flow.
+ *      Ships .env.example only – .env is never written or committed by this flow.
  *      First post-checkout populates .env from .env.example with a fresh JWT.
- *   7. Sync CI secrets (DATABRICKS_HOST / LAKEBASE_PROJECT_ID / DATABRICKS_TOKEN), useGithub
- *   8. Set up self-hosted runner, useGithub + self-hosted only
- *   9. Initial commit + push (workflow-scope error surfaced clearly), push only if useGithub
- *  10. Health check (verifyHooks + verifyWorkflows), warnings reported, not fatal
+ *   7. Sync CI secrets (DATABRICKS_HOST / LAKEBASE_PROJECT_ID / DATABRICKS_TOKEN) – useGithub
+ *   8. Set up self-hosted runner – useGithub + self-hosted only
+ *   9. Initial commit + push (workflow-scope error surfaced clearly) – push only if useGithub
+ *  10. Health check (verifyHooks + verifyWorkflows) – warnings reported, not fatal
  */
 export async function createProject(
   input: CreateProjectArgs,
@@ -117,7 +117,7 @@ export async function createProject(
         /* ignore */
       }
       const samlHint = /SAML|scope does not match|sso/i.test(probeErr)
-        ? "\n\nThe error mentions SAML, re-sign in to GitHub and authorize SSO for this org."
+        ? "\n\nThe error mentions SAML – re-sign in to GitHub and authorize SSO for this org."
         : "";
       const userHint =
         activeUser && activeUser !== input.githubOwner
@@ -160,7 +160,7 @@ export async function createProject(
     report: (m, d) => report(m, d),
   });
 
-  // (Step 6 (write .env) intentionally removed.)
+  // (Step 6 – write .env – intentionally removed.)
   // Substrate ships .env.example only; .env is gitignored and never committed.
   // The post-checkout hook bootstraps .env from .env.example on first switch
   // and fills in the JWT-bearing connection material then. Keeping .env out
@@ -201,7 +201,7 @@ export async function createProject(
       report(`Warning: runner setup failed (${msg}). CI workflows will queue until a runner is available.`);
     }
   } else if (useGithub) {
-    report("Using GitHub-hosted runners, no local runner needed.");
+    report("Using GitHub-hosted runners – no local runner needed.");
   } else {
     report("Skipping runner setup (no GitHub repository).");
   }

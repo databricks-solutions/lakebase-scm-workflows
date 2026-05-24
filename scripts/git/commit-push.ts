@@ -1,7 +1,7 @@
 // Initial commit + (optional) push for a freshly-scaffolded project.
 //
 // Mirrors the tail of ProjectCreationService.createProject. The
-// workflow-scope error message is preserved verbatim, the raw remote
+// workflow-scope error message is preserved verbatim – the raw remote
 // rejection ("without `workflow` scope") is opaque if you haven't seen it.
 
 import { exec } from "../util/exec.js";
@@ -47,7 +47,7 @@ export async function commit(args: CommitArgs): Promise<void> {
 /**
  * Commit and (by default) push to origin/main with -u. Throws
  * {@link WorkflowScopeError} when the remote rejects due to the GitHub
- * token lacking the `workflow` OAuth scope, that error message is highly
+ * token lacking the `workflow` OAuth scope – that error message is highly
  * actionable and worth preserving.
  */
 export async function commitAndPush(args: CommitAndPushArgs): Promise<void> {

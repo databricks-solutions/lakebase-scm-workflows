@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Print the canonical tool registry (apps/mcp-server/tools.ts) as JSON.
 // Consumed by scripts/openai-foundry.py to format the same schemas into
-// the OpenAI Foundry / Codex tool spec shape, keeps tools.ts as the
+// the OpenAI Foundry / Codex tool spec shape – keeps tools.ts as the
 // single source of truth for tool surfaces across MCP and Foundry.
 
 import { TOOLS } from "./tools.js";

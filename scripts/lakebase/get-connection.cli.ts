@@ -44,14 +44,14 @@ function parseArgs(argv: string[]): ParsedArgs {
         out.help = true;
         break;
       default:
-        // unknown flag, ignore (lets callers pass through env-only invocations)
+        // unknown flag – ignore (lets callers pass through env-only invocations)
         break;
     }
   }
   return out;
 }
 
-const HELP = `lakebase-get-connection, credential-handoff helper for Lakebase-paired projects
+const HELP = `lakebase-get-connection – credential-handoff helper for Lakebase-paired projects
 
 Usage:
   lakebase-get-connection --output dsn --instance <id> --branch <name> [--endpoint primary] [--database <db>] [--json]
@@ -59,7 +59,7 @@ Usage:
 Flags:
   --output    "dsn" (only CLI-supported output). For pg.Pool callers, import
               { getConnection } from "@databricks-solutions/lakebase-app-dev-kit"
-              and call with output: "pool", pools are not serializable to stdout.
+              and call with output: "pool" – pools are not serializable to stdout.
   --instance  Lakebase project id (required)
   --branch    Branch id within the project (required)
   --endpoint  Endpoint identifier on the branch (default: "primary")

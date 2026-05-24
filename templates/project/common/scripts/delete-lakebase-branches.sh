@@ -86,7 +86,7 @@ if [ $# -eq 0 ]; then
   fi
 fi
 
-# Protected branches never get deleted, includes long-lived promotion branches
+# Protected branches never get deleted – includes long-lived promotion branches
 # (main, master, staging, production) and the Lakebase project's default.
 # Override via LAKEBASE_PROTECTED_BRANCHES="staging main production custom-foo".
 _DEFAULT_PROTECTED="main master staging production"
