@@ -1,0 +1,149 @@
+{
+  "version": "1",
+  "source": "apps/mcp-server/tools.ts (via dist/apps/mcp-server/dump-tools.js)",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "lakebase_get_connection",
+        "description": "Mint a Postgres DSN string for a Lakebase branch. Single-seam credential handoff: this is the only path that mints Lakebase credentials.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "instance": {
+              "type": "string",
+              "description": "Lakebase project (instance) id."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Branch id within the project."
+            },
+            "endpointName": {
+              "type": "string",
+              "description": "Endpoint identifier on the branch. Default: 'primary'."
+            },
+            "database": {
+              "type": "string",
+              "description": "Database name. Default: $PGDATABASE or 'databricks_postgres'."
+            }
+          },
+          "required": [
+            "instance",
+            "branch"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "lakebase_schema_diff",
+        "description": "Parent-aware schema diff between two Lakebase branches. If 'against' is omitted, parent is resolved from Lakebase metadata (sourceBranchId, falling back to the project's default branch).",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "instance": {
+              "type": "string",
+              "description": "Lakebase project (instance) id."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Target branch to diff FOR."
+            },
+            "against": {
+              "type": "string",
+              "description": "Explicit parent branch. Default: resolved from metadata."
+            },
+            "database": {
+              "type": "string",
+              "description": "Database name. Default: $PGDATABASE or 'databricks_postgres'."
+            }
+          },
+          "required": [
+            "instance",
+            "branch"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "lakebase_github_token",
+        "description": "Resolve a GitHub token via the unified fallback chain (GITHUB_TOKEN env \u2192 VS Code session \u2192 gh auth token). Use 'diagnose: true' to inspect which sources are available WITHOUT revealing the token value.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "diagnose": {
+              "type": "boolean",
+              "description": "If true, return { sources, primary, scopes } instead of the token itself. Safe to log."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "lakebase_create_project",
+        "description": "Bootstrap a fresh Lakebase-paired project end-to-end: Lakebase project + parent branch, GitHub repo (optional), Actions runner, repo secrets, local scaffold.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "projectName": {
+              "type": "string",
+              "description": "Project name (Lakebase id + local dir)."
+            },
+            "parentDir": {
+              "type": "string",
+              "description": "Parent directory for the new project dir."
+            },
+            "databricksHost": {
+              "type": "string",
+              "description": "Databricks workspace URL (https://....cloud.databricks.com)."
+            },
+            "githubOwner": {
+              "type": "string",
+              "description": "GitHub user/org for the repo. Required unless createGithubRepo=false."
+            },
+            "createGithubRepo": {
+              "type": "boolean",
+              "description": "Create a GitHub repo? Default: true."
+            },
+            "privateRepo": {
+              "type": "boolean",
+              "description": "Make the GitHub repo private? Default: true."
+            },
+            "language": {
+              "type": "string",
+              "enum": [
+                "java",
+                "kotlin",
+                "python",
+                "nodejs"
+              ],
+              "description": "Project language. Default: 'java'."
+            },
+            "runnerType": {
+              "type": "string",
+              "enum": [
+                "self-hosted",
+                "github-hosted"
+              ],
+              "description": "Actions runner mode. Default: 'self-hosted'."
+            }
+          },
+          "required": [
+            "projectName",
+            "parentDir",
+            "databricksHost"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

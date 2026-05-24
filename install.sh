@@ -23,13 +23,11 @@
 #   bash <(curl -sL .../install.sh) --install-to-genie [--profile DEFAULT]
 #
 # Targets supported in this release:
-#   claude      — Claude Code (terminal). Path: .claude/skills/<name>/
-#   cursor      — Cursor. Path: .cursor/skills/<name>/
-#   genie       — Databricks Genie Code (workspace upload via `databricks workspace import-dir`)
-#
-# Targets not yet wired (need MCP server impl):
-#   claude-desktop — needs an MCP server (placeholder in .mcp.json; see apps/mcp-server)
-#   openai-foundry — needs a custom GPT tool schema generator (no aikit precedent)
+#   claude          — Claude Code (terminal). Path: .claude/skills/<name>/
+#   cursor          — Cursor. Path: .cursor/skills/<name>/
+#   genie           — Databricks Genie Code (workspace upload via `databricks workspace import-dir`)
+#   claude-desktop  — Claude Desktop via the MCP server at apps/mcp-server/. Path: .mcp.json
+#   openai-foundry  — OpenAI Foundry / Codex tool-spec JSON. Path: tools/openai-foundry/lakebase-scm-workflows.tools.json
 
 set -e
 
@@ -58,17 +56,19 @@ lakebase-scm-workflows installer
 Usage: install.sh [OPTIONS]
 
 Options:
-  --tools LIST            Comma-separated targets: claude,cursor
+  --tools LIST            Comma-separated targets: claude,cursor,claude-desktop,openai-foundry
   --global                Install globally (~/.claude/skills, ~/.cursor/skills) instead of project-scoped
   --force                 Overwrite existing skill files without prompting
   --install-to-genie      After install, upload skills/ to Databricks workspace
   --profile NAME          Databricks CLI profile for --install-to-genie (default: DEFAULT)
   -h, --help              Show this help
 
-Targets (auto-detected):
-  claude      Claude Code (terminal)         Path: .claude/skills/<name>/
-  cursor      Cursor                          Path: .cursor/skills/<name>/
-  genie       Databricks Genie Code           Workspace upload (use --install-to-genie)
+Targets:
+  claude           Claude Code (terminal)         Path: .claude/skills/<name>/                              (auto-detect)
+  cursor           Cursor                         Path: .cursor/skills/<name>/                              (auto-detect)
+  claude-desktop   Claude Desktop                 Wire .mcp.json into claude_desktop_config.json            (manual step printed)
+  openai-foundry   OpenAI Foundry / Codex         tools/openai-foundry/lakebase-scm-workflows.tools.json    (manual paste printed)
+  genie            Databricks Genie Code          Workspace upload (use --install-to-genie)
 EOF
 }
 
@@ -136,6 +136,25 @@ target_path() {
 # Install per target.
 install_one() {
   local tool="$1"
+
+  # claude-desktop + openai-foundry don't fit the copy-tree pattern. Both
+  # surface artifacts that the user wires into the agent manually
+  # (Claude Desktop's claude_desktop_config.json, Foundry's tool config).
+  if [ "$tool" = "claude-desktop" ]; then
+    echo -e "${GREEN}  ✓ claude-desktop${NC} — copy the entry from ${BLUE}$REPO_ROOT/.mcp.json${NC} into your claude_desktop_config.json (under \"mcpServers\")."
+    echo -e "    First-time setup: ${BLUE}cd $REPO_ROOT && npm install && npm run build${NC}"
+    return
+  fi
+  if [ "$tool" = "openai-foundry" ]; then
+    local foundry_json="$REPO_ROOT/tools/openai-foundry/lakebase-scm-workflows.tools.json"
+    if [ ! -f "$foundry_json" ]; then
+      echo -e "${YELLOW}  ! openai-foundry tool spec not built. Generating now...${NC}"
+      ( cd "$REPO_ROOT" && python3 scripts/openai-foundry.py )
+    fi
+    echo -e "${GREEN}  ✓ openai-foundry${NC} — paste ${BLUE}$foundry_json${NC} into your Foundry / Codex tool config."
+    return
+  fi
+
   local dest
   dest="$(target_path "$tool")" || { echo -e "${YELLOW}Skipping unknown target: $tool${NC}"; return; }
 
