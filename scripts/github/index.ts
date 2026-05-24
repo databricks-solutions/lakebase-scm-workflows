@@ -1,7 +1,7 @@
 // Barrel: GitHub workflow scripts.
 //
 // Consumers import via the package name:
-//   import { resolveGitHubToken } from "@databricks-solutions/lakebase-scm-workflow-scripts/github";
+//   import { resolveGitHubToken } from "@databricks-solutions/lakebase-app-dev-kit/github";
 //
 // The substrate compiles to dist/scripts/github/index.js; the package.json
 // `exports` map maps "./github" → that file.

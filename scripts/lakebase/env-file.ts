@@ -25,7 +25,7 @@ export function writeEnvFile(args: WriteEnvFileArgs): string {
   const host = args.databricksHost.replace(/\/+$/, "");
   const envContent = [
     "# Lakebase project configuration",
-    "# Created by @databricks-solutions/lakebase-scm-workflow-scripts",
+    "# Created by @databricks-solutions/lakebase-app-dev-kit",
     "",
     `DATABRICKS_HOST=${host}`,
     `LAKEBASE_PROJECT_ID=${args.lakebaseProjectId}`,

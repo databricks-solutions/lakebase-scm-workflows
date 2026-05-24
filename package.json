@@ -1,13 +1,13 @@
 {
-  "name": "@databricks-solutions/lakebase-scm-workflow-scripts",
-  "version": "0.1.0-alpha.2",
-  "description": "Opinionated git-Lakebase branch-pairing workflow scripts. Shared executable surface for the lakebase-scm-extension and Claude Code agent skills.",
+  "name": "@databricks-solutions/lakebase-app-dev-kit",
+  "version": "0.2.0-alpha.0",
+  "description": "Lakebase-backed application development kit — shared scripts, agent skills (SCM today, TDD next), MCP server, and OpenAI Foundry tool spec. Consumed by lakebase-scm-extension and coding agents (Claude Code, Claude Desktop, OpenAI Codex, Cursor, Databricks Genie Code).",
   "type": "module",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "repository": {
     "type": "git",
-    "url": "https://github.com/databricks-solutions/lakebase-scm-workflows"
+    "url": "https://github.com/databricks-solutions/lakebase-app-dev-kit"
   },
   "main": "./dist/scripts/index.cjs",
   "module": "./dist/scripts/index.js",

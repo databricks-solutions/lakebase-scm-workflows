@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 GEN_SCRIPT = REPO_ROOT / "scripts" / "openai-foundry.py"
-OUTPUT_PATH = REPO_ROOT / "tools" / "openai-foundry" / "lakebase-scm-workflows.tools.json"
+OUTPUT_PATH = REPO_ROOT / "tools" / "openai-foundry" / "lakebase-app-dev-kit.tools.json"
 DUMP_BIN = REPO_ROOT / "dist" / "apps" / "mcp-server" / "dump-tools.js"
 
 

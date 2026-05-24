@@ -1,4 +1,4 @@
-// Tool registry for the lakebase-scm-workflows MCP server.
+// Tool registry for the lakebase-app-dev-kit MCP server.
 //
 // Each tool wraps a script module function (NOT a subprocess). The MCP
 // server exposes these by name + JSON Schema; an MCP-capable agent

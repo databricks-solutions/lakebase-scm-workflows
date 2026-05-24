@@ -58,7 +58,7 @@ Usage:
 
 Flags:
   --output    "dsn" (only CLI-supported output). For pg.Pool callers, import
-              { getConnection } from "@databricks-solutions/lakebase-scm-workflow-scripts"
+              { getConnection } from "@databricks-solutions/lakebase-app-dev-kit"
               and call with output: "pool" — pools are not serializable to stdout.
   --instance  Lakebase project id (required)
   --branch    Branch id within the project (required)
@@ -81,7 +81,7 @@ async function main(): Promise<number> {
   if (args.output === "pool") {
     process.stderr.write(
       "Error: --output pool is not supported on the CLI (pg.Pool is a runtime object).\n" +
-        'Use the module API instead: import { getConnection } from "@databricks-solutions/lakebase-scm-workflow-scripts"\n'
+        'Use the module API instead: import { getConnection } from "@databricks-solutions/lakebase-app-dev-kit"\n'
     );
     return 2;
   }

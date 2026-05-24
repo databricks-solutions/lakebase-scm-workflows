@@ -1,4 +1,4 @@
-// BDD equivalence harness for lakebase-scm-workflows.
+// BDD equivalence harness for lakebase-app-dev-kit.
 //
 // Every workflow operation must produce identical on-disk / Lakebase / git
 // state whether invoked through the extension call site or the agent call

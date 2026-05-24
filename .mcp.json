@@ -12,7 +12,7 @@
     "Note: @modelcontextprotocol/sdk is an OPTIONAL peer dep of this package — kept out of regular `dependencies` so consumers that only import the substrate's TypeScript modules (like lakebase-scm-extension) don't drag the MCP runtime into their node_modules. The dev install in step 1 picks it up via devDependencies."
   ],
   "mcpServers": {
-    "lakebase-scm-workflows": {
+    "lakebase-app-dev-kit": {
       "command": "node",
       "args": ["./dist/apps/mcp-server/index.js"],
       "env": {}

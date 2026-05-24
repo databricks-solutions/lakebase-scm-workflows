@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# lakebase-scm-workflows — multi-target installer
+# lakebase-app-dev-kit — multi-target installer
 #
 # Modeled on databricks-solutions/ai-dev-kit/install.sh. One canonical
 # skill tree (skills/lakebase-scm-workflows/), copied into the path each
 # agent reads from.
 #
 # Usage:
-#   bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/lakebase-scm-workflows/main/install.sh) [OPTIONS]
+#   bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/lakebase-app-dev-kit/main/install.sh) [OPTIONS]
 #
 # Examples:
 #   # Auto-detect installed agents, prompt to pick
@@ -27,13 +27,13 @@
 #   cursor          — Cursor. Path: .cursor/skills/<name>/
 #   genie           — Databricks Genie Code (workspace upload via `databricks workspace import-dir`)
 #   claude-desktop  — Claude Desktop via the MCP server at apps/mcp-server/. Path: .mcp.json
-#   openai-foundry  — OpenAI Foundry / Codex tool-spec JSON. Path: tools/openai-foundry/lakebase-scm-workflows.tools.json
+#   openai-foundry  — OpenAI Foundry / Codex tool-spec JSON. Path: tools/openai-foundry/lakebase-app-dev-kit.tools.json
 
 set -e
 
 SKILL_NAME="lakebase-scm-workflows"
 OWNER="databricks-solutions"
-REPO="lakebase-scm-workflows"
+REPO="lakebase-app-dev-kit"
 
 # Defaults
 TOOLS="${DEVKIT_TOOLS:-}"
@@ -67,7 +67,7 @@ Targets:
   claude           Claude Code (terminal)         Path: .claude/skills/<name>/                              (auto-detect)
   cursor           Cursor                         Path: .cursor/skills/<name>/                              (auto-detect)
   claude-desktop   Claude Desktop                 Wire .mcp.json into claude_desktop_config.json            (manual step printed)
-  openai-foundry   OpenAI Foundry / Codex         tools/openai-foundry/lakebase-scm-workflows.tools.json    (manual paste printed)
+  openai-foundry   OpenAI Foundry / Codex         tools/openai-foundry/lakebase-app-dev-kit.tools.json    (manual paste printed)
   genie            Databricks Genie Code          Workspace upload (use --install-to-genie)
 EOF
 }
@@ -147,7 +147,7 @@ install_one() {
     return
   fi
   if [ "$tool" = "openai-foundry" ]; then
-    local foundry_json="$REPO_ROOT/tools/openai-foundry/lakebase-scm-workflows.tools.json"
+    local foundry_json="$REPO_ROOT/tools/openai-foundry/lakebase-app-dev-kit.tools.json"
     if [ ! -f "$foundry_json" ]; then
       echo -e "${YELLOW}  ! openai-foundry tool spec not built. Generating now...${NC}"
       ( cd "$REPO_ROOT" && python3 scripts/openai-foundry.py )
