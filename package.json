@@ -1,6 +1,6 @@
 {
   "name": "@databricks-solutions/lakebase-scm-workflow-scripts",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Opinionated git-Lakebase branch-pairing workflow scripts. Shared executable surface for the lakebase-scm-extension and Claude Code agent skills.",
   "type": "module",
   "private": true,
@@ -68,7 +68,8 @@
     "lakebase-get-connection": "./dist/scripts/lakebase/get-connection.cli.js",
     "lakebase-schema-diff": "./dist/scripts/lakebase/schema-diff.cli.js",
     "lakebase-github-token": "./dist/scripts/github/auth.cli.js",
-    "lakebase-create-project": "./dist/scripts/lakebase/create-project.cli.js"
+    "lakebase-create-project": "./dist/scripts/lakebase/create-project.cli.js",
+    "lakebase-mcp-server": "./dist/apps/mcp-server/index.js"
   },
   "scripts": {
     "build": "tsup",
@@ -80,6 +81,7 @@
   "dependencies": {
     "@databricks/appkit": "*",
     "@databricks/lakebase": "*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "adm-zip": "^0.5.16",
     "find-java-home": "^2.0.0",
     "octokit": "^4.0.0",

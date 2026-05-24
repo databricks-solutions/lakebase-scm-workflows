@@ -18,6 +18,8 @@ export default defineConfig({
     "scripts/lakebase/get-connection.cli": "scripts/lakebase/get-connection.cli.ts",
     "scripts/lakebase/schema-diff.cli": "scripts/lakebase/schema-diff.cli.ts",
     "scripts/lakebase/create-project.cli": "scripts/lakebase/create-project.cli.ts",
+    "apps/mcp-server/index": "apps/mcp-server/index.ts",
+    "apps/mcp-server/dump-tools": "apps/mcp-server/dump-tools.ts",
   },
   outDir: "dist",
   format: ["esm", "cjs"],
