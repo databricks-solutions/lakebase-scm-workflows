@@ -150,7 +150,7 @@ describe("patchWorkflowsForRunnerType", () => {
     expect(after).toBe(before);
   });
 
-  it("swaps setup-java + adds mvnw -o for self-hosted", async () => {
+  it("swaps setup-java for self-hosted and leaves mvnw calls online", async () => {
     const dir = mkTmp();
     await deployWorkflows(dir);
     await patchWorkflowsForRunnerType(dir, "self-hosted");
@@ -158,12 +158,15 @@ describe("patchWorkflowsForRunnerType", () => {
       const filePath = path.join(dir, ".github", "workflows", file);
       if (!fs.existsSync(filePath)) continue;
       const content = fs.readFileSync(filePath, "utf-8");
-      // After patch, setup-java@v4 should not appear
+      // After patch, setup-java@v4 should not appear (self-hosted runner
+      // brings its own JDK; the scaffold swaps to a local JDK step).
       expect(content).not.toMatch(/uses: actions\/setup-java@v4/);
-      // And any mvnw calls should have -o as the first arg
+      // mvnw calls stay online. Maven resolves through the user's
+      // ~/.m2/settings.xml mirror; forcing -o here would block
+      // plugin-prefix lookups (e.g. `flyway:migrate`) on a cold runner.
       const mvnwHits = content.match(/\.\/mvnw\s+\S+/g) ?? [];
       for (const hit of mvnwHits) {
-        expect(hit).toMatch(/\.\/mvnw -o\b/);
+        expect(hit).not.toMatch(/\.\/mvnw -o\b/);
       }
     }
   });

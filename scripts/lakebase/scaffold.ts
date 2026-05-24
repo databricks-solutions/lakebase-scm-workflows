@@ -228,8 +228,6 @@ export async function patchWorkflowsForRunnerType(targetDir: string, runnerType:
       /- name: Set up JDK\n(?:\s+[\w-]+:.*\n)*\s+uses: actions\/setup-java@v4\n\s+with:\n(?:\s+#[^\n]*\n)*(?:\s+[\w-]+:.*\n)+/g,
       localJdkStep
     );
-    // Add `-o` (offline) to mvnw calls for local Maven cache.
-    content = content.replace(/\.\/mvnw /g, "./mvnw -o ");
     fs.writeFileSync(filePath, content);
   }
 }
