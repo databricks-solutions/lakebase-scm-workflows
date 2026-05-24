@@ -48,7 +48,7 @@ def test_generator_writes_output() -> None:
     assert payload["version"] == "1"
     assert "apps/mcp-server/tools.ts" in payload["source"]
     assert isinstance(payload["tools"], list)
-    assert len(payload["tools"]) == 4
+    assert len(payload["tools"]) == 8
 
 
 def test_each_tool_has_openai_function_shape() -> None:
@@ -58,6 +58,10 @@ def test_each_tool_has_openai_function_shape() -> None:
         "lakebase_schema_diff",
         "lakebase_github_token",
         "lakebase_create_project",
+        "lakebase_list_migrations",
+        "lakebase_apply_migrations",
+        "lakebase_rollback_migration",
+        "lakebase_migration_status",
     }
     actual_names = set()
     for tool in payload["tools"]:

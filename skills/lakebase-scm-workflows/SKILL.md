@@ -290,7 +290,7 @@ lakebase-schema-diff --instance proj-abc --branch br-feature --against br-stagin
 
 ## Composition
 
-- **TDD on Lakebase-paired projects**: use the existing [`driver-navigator-tdd`](https://github.com/anthropics/) skill if available. This umbrella does not duplicate test-first methodology.
+- **TDD on Lakebase-paired projects**: a sibling TDD skill is planned in `skills/` (FEIP-7066; name TBD). This umbrella does not duplicate test-first methodology.
 - **Inside VS Code/Cursor**: the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) consumes the same substrate via npm dep – same operations, different presentation layer.
 
 ## See also

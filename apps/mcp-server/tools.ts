@@ -14,6 +14,13 @@ import { getConnection } from "../../scripts/lakebase/get-connection.js";
 import { getSchemaDiff } from "../../scripts/lakebase/schema-diff.js";
 import { createProject, type CreateProjectArgs } from "../../scripts/lakebase/create-project.js";
 import { resolveGitHubToken, diagnoseGitHubAuth } from "../../scripts/github/auth.js";
+import {
+  applyMigrations,
+  rollbackMigration,
+  migrationStatus,
+  listMigrations,
+  type MigrationLanguage,
+} from "../../scripts/lakebase/migrate.js";
 
 export interface ToolDefinition {
   name: string;
@@ -172,6 +179,127 @@ export const TOOLS: ToolDefinition[] = [
         runnerType: optionalString(args, "runnerType") as CreateProjectArgs["runnerType"],
       };
       return await createProject(input);
+    },
+  },
+  {
+    name: "lakebase_list_migrations",
+    description:
+      "Enumerate migration files on disk for a paired project. No DB connection. Auto-detects language (java/kotlin via pom.xml + Flyway, python via pyproject.toml/alembic.ini + Alembic, nodejs via package.json + Knex).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectDir: { type: "string", description: "Project root. Default: cwd of the MCP server." },
+        language: {
+          type: "string",
+          enum: ["java", "kotlin", "python", "nodejs"],
+          description: "Override language detection.",
+        },
+      },
+      additionalProperties: false,
+    },
+    handler: async (args) => {
+      return listMigrations({
+        projectDir: optionalString(args, "projectDir"),
+        language: optionalString(args, "language") as MigrationLanguage | undefined,
+      });
+    },
+  },
+  {
+    name: "lakebase_apply_migrations",
+    description:
+      "Apply pending forward migrations against a Lakebase branch. Python/Alembic supported today; Java+Kotlin/Flyway (FEIP-7098) and Node/Knex (FEIP-7099) error with a clear pointer until those runners land.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instance: { type: "string", description: "Lakebase project (instance) id." },
+        branch: { type: "string", description: "Branch to migrate against." },
+        projectDir: { type: "string", description: "Project root. Default: cwd." },
+        language: {
+          type: "string",
+          enum: ["java", "kotlin", "python", "nodejs"],
+          description: "Override language detection.",
+        },
+        database: { type: "string", description: "Database name. Default: $PGDATABASE or 'databricks_postgres'." },
+        endpointName: { type: "string", description: "Endpoint identifier on the branch. Default: 'primary'." },
+      },
+      required: ["instance", "branch"],
+      additionalProperties: false,
+    },
+    handler: async (args) => {
+      return applyMigrations({
+        instance: requireString(args, "instance"),
+        branch: requireString(args, "branch"),
+        projectDir: optionalString(args, "projectDir"),
+        language: optionalString(args, "language") as MigrationLanguage | undefined,
+        database: optionalString(args, "database"),
+        endpointName: optionalString(args, "endpointName"),
+      });
+    },
+  },
+  {
+    name: "lakebase_rollback_migration",
+    description:
+      "Roll back applied migrations on a Lakebase branch down to a target version. Python/Alembic only today (Flyway Community does not support rollback; Node/Knex via FEIP-7099). For Alembic, 'target' can be a revision id or a relative step like '-1'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instance: { type: "string", description: "Lakebase project (instance) id." },
+        branch: { type: "string", description: "Branch to roll back." },
+        target: { type: "string", description: "Revision id or relative step (e.g., '-1' for one step down)." },
+        projectDir: { type: "string", description: "Project root. Default: cwd." },
+        language: {
+          type: "string",
+          enum: ["java", "kotlin", "python", "nodejs"],
+          description: "Override language detection.",
+        },
+        database: { type: "string", description: "Database name. Default: $PGDATABASE or 'databricks_postgres'." },
+        endpointName: { type: "string", description: "Endpoint identifier on the branch. Default: 'primary'." },
+      },
+      required: ["instance", "branch", "target"],
+      additionalProperties: false,
+    },
+    handler: async (args) => {
+      return rollbackMigration({
+        instance: requireString(args, "instance"),
+        branch: requireString(args, "branch"),
+        target: requireString(args, "target"),
+        projectDir: optionalString(args, "projectDir"),
+        language: optionalString(args, "language") as MigrationLanguage | undefined,
+        database: optionalString(args, "database"),
+        endpointName: optionalString(args, "endpointName"),
+      });
+    },
+  },
+  {
+    name: "lakebase_migration_status",
+    description:
+      "Report the currently-applied migration version and the list of pending migrations for a Lakebase branch.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        instance: { type: "string", description: "Lakebase project (instance) id." },
+        branch: { type: "string", description: "Branch to inspect." },
+        projectDir: { type: "string", description: "Project root. Default: cwd." },
+        language: {
+          type: "string",
+          enum: ["java", "kotlin", "python", "nodejs"],
+          description: "Override language detection.",
+        },
+        database: { type: "string", description: "Database name. Default: $PGDATABASE or 'databricks_postgres'." },
+        endpointName: { type: "string", description: "Endpoint identifier on the branch. Default: 'primary'." },
+      },
+      required: ["instance", "branch"],
+      additionalProperties: false,
+    },
+    handler: async (args) => {
+      return migrationStatus({
+        instance: requireString(args, "instance"),
+        branch: requireString(args, "branch"),
+        projectDir: optionalString(args, "projectDir"),
+        language: optionalString(args, "language") as MigrationLanguage | undefined,
+        database: optionalString(args, "database"),
+        endpointName: optionalString(args, "endpointName"),
+      });
     },
   },
 ];

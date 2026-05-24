@@ -1,12 +1,12 @@
 {
   "version": "2",
-  "updated_at": "2026-05-24T18:16:33Z",
+  "updated_at": "2026-05-24T19:05:39Z",
   "skills": {
     "lakebase-scm-workflows": {
       "version": "0.1.0",
       "description": "Opinionated git-Lakebase branch-pairing workflows. Use when scaffolding a Lakebase-paired project, creating/deleting Lakebase branches in lockstep with git branches, diffing parent-aware schemas, opening or merging PRs that touch Lakebase, or running the same operations the lakebase-scm-extension exposes in VS Code.",
       "experimental": false,
-      "updated_at": "2026-05-24T18:13:21Z",
+      "updated_at": "2026-05-24T18:53:10Z",
       "files": [
         "SKILL.md",
         "agents/openai.yaml",
