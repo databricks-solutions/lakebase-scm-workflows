@@ -78,7 +78,7 @@ describe("getRunnerInfo + isRunning (filesystem state)", () => {
   it("returns online=false for a pid that's clearly dead (pid=1 in a non-root non-init context throws EPERM, treated as dead)", () => {
     const dir = runnerDir("dead-pid-app");
     fs.mkdirSync(dir, { recursive: true });
-    // Use a pid that's almost certainly not a real process, 2^30 is well above
+    // Use a pid that's almost certainly not a real process — 2^30 is well above
     // typical pid_max. process.kill(pid, 0) throws ESRCH for non-existent pids.
     fs.writeFileSync(path.join(dir, ".pid"), "1073741824");
     expect(isRunning("dead-pid-app")).toBe(false);

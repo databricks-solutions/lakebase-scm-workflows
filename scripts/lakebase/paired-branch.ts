@@ -3,14 +3,14 @@
 // The substrate's reason for being is keeping a git branch and a Lakebase
 // branch in lockstep. These four operations encapsulate the coordination:
 //
-//   createPairedBranch, Lakebase branch + matching git branch + .env sync
-//   deletePairedBranch, Lakebase delete + git local + git remote (best-effort)
-//   syncEnvToCurrentBranch, read current git branch, mint fresh credential, update .env
-//   checkoutPaired, in-process equivalent of post-checkout.sh
+//   createPairedBranch        — Lakebase branch + matching git branch + .env sync
+//   deletePairedBranch        — Lakebase delete + git local + git remote (best-effort)
+//   syncEnvToCurrentBranch    — read current git branch, mint fresh credential, update .env
+//   checkoutPaired            — in-process equivalent of post-checkout.sh
 //                               (trunk/staging/feature modes + parent fallback chain)
 //
 // Internal git ops use child_process directly. They're NOT exported as a
-// generic git-wrapper API, the substrate's charter is Lakebase-aware
+// generic git-wrapper API — the substrate's charter is Lakebase-aware
 // workflow coordination, not a git CLI library. Agents that need raw git
 // should shell out to `git` directly.
 
@@ -156,7 +156,7 @@ export interface CreatePairedBranchResult {
  *   3. Create git branch with the same sanitized name (if createGitBranch)
  *   4. Mint credential + update .env (if syncEnv)
  *
- * Failures after step 1 are NOT rolled back, the Lakebase branch survives
+ * Failures after step 1 are NOT rolled back — the Lakebase branch survives
  * and the caller can retry. Warnings collect non-fatal step failures.
  */
 export async function createPairedBranch(
@@ -214,7 +214,7 @@ export async function createPairedBranch(
     try {
       const ep = await getEndpoint({ instance: args.instance, branch: sanitized });
       if (!ep?.host) {
-        warnings.push(`Endpoint not yet available for "${sanitized}", .env not updated`);
+        warnings.push(`Endpoint not yet available for "${sanitized}" — .env not updated`);
       } else {
         const { token, email } = await mintCredential(endpointPath(args.instance, sanitized));
         const dsn = buildDsn(ep.host, database, email, token);
@@ -270,7 +270,7 @@ export interface DeletePairedBranchResult {
  * Delete the Lakebase branch + matching git branch (local + remote).
  *
  * Best-effort: each side is attempted independently and failures land in
- * `warnings[]`. The function never throws, returns a status of each side.
+ * `warnings[]`. The function never throws — returns a status of each side.
  * Useful for the extension's "delete branch everywhere" command and for
  * agent-driven cleanup.
  */
@@ -294,7 +294,7 @@ export async function deletePairedBranch(
     );
   }
 
-  // Git local delete (skip if current branch, would orphan HEAD)
+  // Git local delete (skip if current branch — would orphan HEAD)
   let gitLocalDeleted = false;
   if (deleteGitLocal) {
     try {
@@ -302,7 +302,7 @@ export async function deletePairedBranch(
       if (current === sanitized) {
         warnings.push(`Skipped local git delete: branch "${sanitized}" is currently checked out`);
       } else if (!gitHasLocalBranch(args.cwd, sanitized)) {
-        // No-op, already not present
+        // No-op — already not present
         gitLocalDeleted = true;
       } else {
         gitDeleteLocalBranch(args.cwd, sanitized, true);
@@ -323,7 +323,7 @@ export async function deletePairedBranch(
         gitDeleteRemoteBranch(args.cwd, gitRemote, sanitized);
         gitRemoteDeleted = true;
       } else {
-        // No-op, already not present
+        // No-op — already not present
         gitRemoteDeleted = true;
       }
     } catch (err) {
@@ -384,7 +384,7 @@ export async function syncEnvToCurrentBranch(args: SyncEnvArgs): Promise<SyncEnv
   const ep = await getEndpoint({ instance, branch: sanitized });
   if (!ep?.host) {
     throw new Error(
-      `No endpoint host yet for branch "${sanitized}" in instance "${instance}", branch may still be provisioning`
+      `No endpoint host yet for branch "${sanitized}" in instance "${instance}" — branch may still be provisioning`
     );
   }
   const { token, email } = await getCredential({ instance, branch: sanitized });
@@ -416,7 +416,7 @@ export interface CheckoutPairedArgs {
   /**
    * Override: when the current git branch equals this name, pair with the
    * project's default Lakebase branch. Mirrors LAKEBASE_TRUNK_BRANCH from
-   * the post-checkout hook. Default: no alias, uses main/master.
+   * the post-checkout hook. Default: no alias — uses main/master.
    */
   trunkAlias?: string;
   /**
@@ -470,15 +470,15 @@ export interface CheckoutPairedResult {
  * relying on the git hook to fire (e.g. an agent that doesn't shell out to
  * `git checkout`, or a recovery path when the hook isn't installed). For
  * developers running `git checkout` in a terminal, the hook handles this
- * automatically, calling checkoutPaired then is redundant.
+ * automatically — calling checkoutPaired then is redundant.
  *
  * Mirrors the hook's three-mode logic and parent fallback chain:
  *
- *   1. **trunk**, current branch == `trunkAlias` (or main/master if no
+ *   1. **trunk** — current branch == `trunkAlias` (or main/master if no
  *      alias). Pairs .env with the project's default Lakebase branch.
- *   2. **staging**, current branch == `stagingAlias`. Pairs .env with the
+ *   2. **staging** — current branch == `stagingAlias`. Pairs .env with the
  *      Lakebase `staging` branch IF it already exists; does NOT auto-create.
- *   3. **feature**, anything else. Auto-creates a Lakebase branch with the
+ *   3. **feature** — anything else. Auto-creates a Lakebase branch with the
  *      same sanitized name, using parent precedence:
  *        a. `baseBranch` arg (pinned 3-tier base)
  *        b. `previousBranch` arg / LAKEBASE_BRANCH_ID from .env, if that
@@ -488,7 +488,7 @@ export interface CheckoutPairedResult {
  * After resolving the Lakebase branch, ensures its endpoint exists (creates
  * one with autoscaling 2-4 CU if missing), mints a fresh credential, and
  * rewrites the .env connection block. The git checkout itself is NOT
- * performed, caller is responsible for that side (either `git checkout`
+ * performed — caller is responsible for that side (either `git checkout`
  * before calling, or rely on the hook firing after `git checkout`).
  */
 export async function checkoutPaired(args: CheckoutPairedArgs): Promise<CheckoutPairedResult> {
@@ -513,7 +513,7 @@ export async function checkoutPaired(args: CheckoutPairedArgs): Promise<Checkout
   const branchId = sanitizeBranchName(rawBranch);
   const database = args.database ?? process.env.PGDATABASE ?? "databricks_postgres";
 
-  // 3. Resolve "previous Lakebase branch", caller arg wins over .env
+  // 3. Resolve "previous Lakebase branch" — caller arg wins over .env
   const previousBranch =
     args.previousBranch ?? readEnvVar(envPath, "LAKEBASE_BRANCH_ID") ?? "";
 
@@ -542,9 +542,9 @@ export async function checkoutPaired(args: CheckoutPairedArgs): Promise<Checkout
     if (!staging) {
       warnings.push(
         `On git branch "${rawBranch}" (staging alias) but Lakebase "staging" branch does not exist. ` +
-          `It must be bootstrapped deliberately, this function does not auto-create it.`
+          `It must be bootstrapped deliberately — this function does not auto-create it.`
       );
-      // Don't update .env when staging is missing, return a hollow result
+      // Don't update .env when staging is missing — return a hollow result
       return {
         branchId,
         mode,
@@ -557,7 +557,7 @@ export async function checkoutPaired(args: CheckoutPairedArgs): Promise<Checkout
     }
     lakebaseBranch = "staging";
   } else {
-    // Feature mode, find or create the Lakebase branch with parent fallback
+    // Feature mode — find or create the Lakebase branch with parent fallback
     let existing = await getBranchByName(branchId, { instance });
     if (!existing) {
       if (args.autoCreate !== false) {

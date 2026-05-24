@@ -16,7 +16,7 @@ source .env 2>/dev/null || true
 set +a
 
 # Build DATABASE_URL from SPRING_DATASOURCE_* if not already set (backward compat).
-# URL-encode both username and password, the email-style username always
+# URL-encode both username and password — the email-style username always
 # contains '@' which otherwise confuses libpq/psycopg DSN parsing.
 if [ -z "${DATABASE_URL:-}" ] && [ -n "${SPRING_DATASOURCE_URL:-}" ]; then
   DATABASE_URL="$(echo "$SPRING_DATASOURCE_URL" | sed 's|^jdbc:postgresql://|postgresql://|')"
@@ -30,7 +30,7 @@ fi
 
 # Detect project language and run pending migrations before tests
 if [ -f "$REPO_ROOT/pom.xml" ]; then
-  # Java / Maven, export SPRING_DATASOURCE_* for Maven/Spring
+  # Java / Maven — export SPRING_DATASOURCE_* for Maven/Spring
   if [ -z "${SPRING_DATASOURCE_URL:-}" ] && [ -n "${DATABASE_URL:-}" ]; then
     SPRING_DATASOURCE_URL="jdbc:$(echo "$DATABASE_URL" | sed 's|^postgresql://[^@]*@|postgresql://|')"
     SPRING_DATASOURCE_USERNAME="${DB_USERNAME:-}"

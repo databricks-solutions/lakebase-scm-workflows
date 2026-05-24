@@ -101,7 +101,7 @@ def test_validate_fails_on_drift() -> None:
     original = OUTPUT_PATH.read_text(encoding="utf-8")
     try:
         payload = json.loads(original)
-        payload["tools"][0]["function"]["description"] = "DRIFTED, should fail validate"
+        payload["tools"][0]["function"]["description"] = "DRIFTED — should fail validate"
         OUTPUT_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
         result = _run_generator("validate")

@@ -55,7 +55,7 @@ describe("patchPomForLakebase", () => {
     expect(patched).toMatch(/EnableDynamicAgentLoading/);
   });
 
-  it("is idempotent, running twice produces the same content", () => {
+  it("is idempotent — running twice produces the same content", () => {
     const dir = mkTmp();
     const pomPath = path.join(dir, "pom.xml");
     fs.writeFileSync(pomPath, SAMPLE_POM_WITH_SPRING);

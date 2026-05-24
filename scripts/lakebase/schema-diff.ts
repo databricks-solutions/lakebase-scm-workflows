@@ -1,13 +1,13 @@
 // Parent-aware schema diff between two Lakebase branches.
 //
 // Compares the target branch against its parent (the branch's sourceBranchId
-// in Lakebase metadata), for a feature forked from staging, that means diff
+// in Lakebase metadata) — for a feature forked from staging, that means diff
 // vs staging, not vs production. Falls back to the project's default branch
 // when source can't be resolved (e.g. for staging itself, or branches whose
 // source has been deleted).
 //
 // Returns a structured SchemaDiffResult that matches the data contract the
-// VS Code extension's per-table-diff modal consumes, same field names, same
+// VS Code extension's per-table-diff modal consumes — same field names, same
 // semantics, so once the extension re-routes (FEIP-7065 publish_and_consume),
 // the modal can read identical JSON from either call site.
 
@@ -44,7 +44,7 @@ export interface SchemaDiffResult {
   comparisonBranchName: string;
   timestamp: string;
   /**
-   * Always empty in the script-emitted result, migrations are a workspace
+   * Always empty in the script-emitted result — migrations are a workspace
    * file concern, not a Lakebase-side concern. The extension fills this in
    * locally from its workspace's migrationPath.
    */
@@ -79,7 +79,7 @@ export interface GetSchemaDiffArgs {
   workspaceClient?: unknown;
 }
 
-/** Skip this table in diffs, Flyway's bookkeeping isn't user schema. */
+/** Skip this table in diffs — Flyway's bookkeeping isn't user schema. */
 const IGNORED_TABLES = new Set(["flyway_schema_history"]);
 
 const SCHEMA_QUERY =
@@ -232,7 +232,7 @@ function resolveComparisonBranch(instance: string, branch: string): string | und
   const sourceBranchId = branchInfo?.source_branch_id ?? branchInfo?.sourceBranchId;
   if (sourceBranchId && typeof sourceBranchId === "string") {
     // source_branch_id is a UID (br-foo-bar). list-endpoints (and most other
-    // postgres API endpoints) accept the branch NAME, not the UID, passing
+    // postgres API endpoints) accept the branch NAME, not the UID — passing
     // the UID returns "branch id not found". Resolve it to a name here.
     const resolved = resolveBranchNameByUid(instance, sourceBranchId);
     if (resolved) return resolved;
@@ -276,7 +276,7 @@ function describeBranch(instance: string, branch: string): BranchMetadata | unde
     const raw = dbcli(["postgres", "get-branch", branchPath, "-o", "json"]);
     return JSON.parse(raw) as BranchMetadata;
   } catch {
-    // Fall back to scanning list-branches, older CLI versions may not expose
+    // Fall back to scanning list-branches — older CLI versions may not expose
     // `get-branch`. Tolerate the gap silently; caller's metadata may simply
     // be unavailable.
     try {
@@ -297,7 +297,7 @@ function findDefaultBranch(instance: string): string | undefined {
     const items = Array.isArray(parsed) ? parsed : parsed.branches ?? parsed.items ?? [];
     const def = items.find((b) => b.status?.default === true || b.is_default === true);
     if (!def) return undefined;
-    // Prefer NAME (leaf of "projects/X/branches/Y") over UID, list-endpoints
+    // Prefer NAME (leaf of "projects/X/branches/Y") over UID — list-endpoints
     // accepts the name segment but rejects bare UIDs as "branch id not found".
     return def.name?.split("/branches/").pop() ?? def.uid ?? undefined;
   } catch {

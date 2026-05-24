@@ -1,4 +1,4 @@
-// Self-hosted runner Octokit calls. Narrow surface, only the methods
+// Self-hosted runner Octokit calls. Narrow surface — only the methods
 // scripts/lakebase/runner-setup.ts needs. Routes auth through
 // resolveGitHubToken (FEIP-7068).
 
@@ -53,7 +53,7 @@ export async function createRegistrationToken(ownerRepo: string): Promise<string
     if (err instanceof GitHubRunnerError) throw err;
     if (err instanceof RequestError && err.status === 404) {
       throw new GitHubRunnerError(
-        `GitHub returned 404 for "${ownerRepo}". The signed-in user can't see this repo, ` +
+        `GitHub returned 404 for "${ownerRepo}". The signed-in user can't see this repo — ` +
           `it's likely private and owned by a different account. Sign in to GitHub as the repo ` +
           `owner (or set GITHUB_TOKEN to a token with access) and retry.`,
         404
@@ -97,7 +97,7 @@ export async function getRunnerStatus(
   return runners.find((r) => r.name === runnerName)?.status;
 }
 
-/** Deregister a runner from the repo (best-effort, failures are swallowed). */
+/** Deregister a runner from the repo (best-effort — failures are swallowed). */
 export async function deleteRunner(ownerRepo: string, runnerId: number): Promise<void> {
   try {
     const { owner, repo } = parseOwnerRepo(ownerRepo);

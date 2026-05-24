@@ -1,6 +1,6 @@
-# `github-auth`, unified GitHub token resolver
+# `github-auth` — unified GitHub token resolver
 
-Single GitHub auth seam for Lakebase SCM workflows. Both the VS Code extension and the agent call this module from the same .js function, same behavior, different runtime contexts.
+Single GitHub auth seam for Lakebase SCM workflows. Both the VS Code extension and the agent call this module from the same .js function — same behavior, different runtime contexts.
 
 Every other workflow op that touches GitHub resolves a token through this module. A CI grep guard (`.github/workflows/github-auth-grep-guard.yml`) fails the build if anything else constructs an Octokit with a directly-resolved token.
 
@@ -8,10 +8,10 @@ Every other workflow op that touches GitHub resolves a token through this module
 
 `resolveGitHubToken()` tries these sources in order:
 
-1. **`GITHUB_TOKEN` env var**: set this for CI, headless automation, integration tests.
-2. **VS Code `authentication.getSession('github', …)`**: dynamic `import('vscode')` resolves only inside the extension host. In pure Node it throws and we silently fall through.
-3. **`gh auth token`**: shells out to the GitHub CLI. Catches users who already authenticated via `gh auth login`.
-4. **Clear error**: `"No GitHub auth available. Set GITHUB_TOKEN, sign in to GitHub in VS Code, or run `gh auth login`."`
+1. **`GITHUB_TOKEN` env var** — set this for CI, headless automation, integration tests.
+2. **VS Code `authentication.getSession('github', …)`** — dynamic `import('vscode')` resolves only inside the extension host. In pure Node it throws and we silently fall through.
+3. **`gh auth token`** — shells out to the GitHub CLI. Catches users who already authenticated via `gh auth login`.
+4. **Clear error** — `"No GitHub auth available. Set GITHUB_TOKEN, sign in to GitHub in VS Code, or run `gh auth login`."`
 
 The chain is non-interactive. For the sign-in UX (`createIfNone: true`), the extension's `ensureGitHubAuth()` wrapper calls `tryVsCodeSession({ createIfNone: true })` directly.
 
@@ -68,10 +68,10 @@ import { resolveGitHubToken, tryVsCodeSession }
 
 export const GITHUB_SCOPES = ["repo", "workflow", "delete_repo"] as const;
 
-/** Non-interactive, delegates to the shared resolver. */
+/** Non-interactive — delegates to the shared resolver. */
 export const getGitHubToken = resolveGitHubToken;
 
-/** Interactive, prompts VS Code sign-in. Extension-only. */
+/** Interactive — prompts VS Code sign-in. Extension-only. */
 export async function ensureGitHubAuth(): Promise<string> {
   const token =
     (await tryVsCodeSession({ createIfNone: true })) ??
@@ -85,4 +85,4 @@ Pre-FEIP-7065, the extension keeps its own resolver and consumes this helper onc
 
 ## Why one helper
 
-GitHub credentials come from at least three places in our setup (env var, VS Code session, gh CLI). Letting each call site pick its own source produces drift, different paths handle missing creds with different error messages, and a bug in one path is invisible from the others. One seam, one fallback chain, one grep guard. Same shape as the Lakebase credential helper (`get-connection.ts`, FEIP-7061).
+GitHub credentials come from at least three places in our setup (env var, VS Code session, gh CLI). Letting each call site pick its own source produces drift — different paths handle missing creds with different error messages, and a bug in one path is invisible from the others. One seam, one fallback chain, one grep guard. Same shape as the Lakebase credential helper (`get-connection.ts`, FEIP-7061).

@@ -1,4 +1,4 @@
-// Lakebase project CRUD, the create / delete / default-branch-lookup
+// Lakebase project CRUD — the create / delete / default-branch-lookup
 // subset of LakebaseService that create-project needs. Other LakebaseService
 // concerns (endpoints, credential minting, schema querying) live in
 // scripts/lakebase/get-connection.ts (FEIP-7061) and other verbs.

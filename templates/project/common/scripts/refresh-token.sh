@@ -120,7 +120,7 @@ if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
   BRANCH_ID="$DEFAULT_BRANCH_UID"
 else
   LAKEBASE_BRANCH="$(echo "$BRANCH" | sed 's/\//-/g' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-63)"
-  # Lakebase requires at least 3 characters, pad short names
+  # Lakebase requires at least 3 characters — pad short names
   while [ ${#LAKEBASE_BRANCH} -lt 3 ]; do LAKEBASE_BRANCH="${LAKEBASE_BRANCH}-x"; done
   BRANCH_PATH="${PROJ_PATH}/branches/${LAKEBASE_BRANCH}"
   BRANCH_ID="$LAKEBASE_BRANCH"

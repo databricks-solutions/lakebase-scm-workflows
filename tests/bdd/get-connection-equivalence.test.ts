@@ -17,7 +17,7 @@ afterAll(async () => {
   if (pool) await pool.end();
 });
 
-describe.skipIf(skip)("get-connection, DSN and Pool resolve to the same database", () => {
+describe.skipIf(skip)("get-connection — DSN and Pool resolve to the same database", () => {
   it("returns identical current_database()/host across both output shapes", async () => {
     // Path 1: --output dsn → connect with raw pg.Client using the URL
     const dsn = await getConnection({
@@ -52,7 +52,7 @@ describe.skipIf(skip)("get-connection, DSN and Pool resolve to the same database
     // connects; instead assert they're both non-empty.
     expect(poolRow.host).toBeTruthy();
     expect(dsnRow.host).toBeTruthy();
-    // User identity must match, both paths use the operator principal
+    // User identity must match — both paths use the operator principal
     expect(poolRow.user).toBe(dsnRow.user);
   });
 });
@@ -62,7 +62,7 @@ describe("get-connection equivalence (skip-when-env-missing)", () => {
     if (!skip) return;
     // eslint-disable-next-line no-console
     console.log(
-      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, equivalence suite skipped."
+      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set — equivalence suite skipped."
     );
     expect(skip).toBe(true);
   });

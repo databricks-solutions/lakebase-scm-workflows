@@ -18,7 +18,7 @@ if [ -f .env ]; then
   set +a
 fi
 
-# Refresh OAuth token before syncing, this is the critical step.
+# Refresh OAuth token before syncing — this is the critical step.
 # CI workflows use DATABRICKS_TOKEN from GitHub secrets. If we don't refresh here,
 # CI gets a stale token and auth fails on merge cleanup, migrations, etc.
 if [ -n "${DATABRICKS_HOST:-}" ] && command -v databricks >/dev/null 2>&1; then
@@ -30,7 +30,7 @@ if [ -n "${DATABRICKS_HOST:-}" ] && command -v databricks >/dev/null 2>&1; then
     export DATABRICKS_TOKEN="$FRESH_TOKEN"
     echo "Pre-push: OAuth token refreshed."
   else
-    echo "Pre-push: ERROR, could not refresh OAuth token."
+    echo "Pre-push: ERROR — could not refresh OAuth token."
     echo "Pre-push: CI will fail with a stale token. Run 'databricks auth login' and try again."
     exit 1
   fi

@@ -2,7 +2,7 @@
 // to the GitHub repo. Mints a fresh Databricks PAT.
 //
 // Caller passes the values directly. Previously this read .env from disk,
-// but since createProject no longer writes .env (option 3, the only on-disk
+// but since createProject no longer writes .env (option 3 — the only on-disk
 // .env is created later by the post-checkout hook, after CI secrets need to
 // be set), the values have to come from the create-project caller's scope.
 
@@ -47,7 +47,7 @@ export async function syncCiSecrets(args: SyncCiSecretsArgs): Promise<void> {
     LAKEBASE_PROJECT_ID: args.lakebaseProjectId,
   };
 
-  // Mint a fresh PAT for CI. If this fails, ship the non-secret pair anyway.
+  // Mint a fresh PAT for CI. If this fails, ship the non-secret pair anyway —
   // a partially-configured repo is still better than nothing (the user can
   // re-mint via the in-project refresh-token script), and the caller logs the
   // warning. Auth workflows will fail loudly with a clear message until then.
@@ -60,7 +60,7 @@ export async function syncCiSecrets(args: SyncCiSecretsArgs): Promise<void> {
     const token = parsed.token_value || parsed.token || "";
     if (token) secrets.DATABRICKS_TOKEN = token;
   } catch {
-    // PAT mint failed, proceed with HOST/PROJECT_ID only.
+    // PAT mint failed — proceed with HOST/PROJECT_ID only.
   }
 
   await setRepoSecrets(ownerRepo, secrets);

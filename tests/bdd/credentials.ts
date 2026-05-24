@@ -4,7 +4,7 @@
  * The substrate's live tests need a real Databricks workspace + GitHub auth +
  * (for some) a pre-existing Lakebase project / branch the test can read from.
  * Today each test file ad-hoc-reads its own env vars and emits its own skip
- * message, readable in isolation, opaque when a contributor runs the whole
+ * message — readable in isolation, opaque when a contributor runs the whole
  * suite and wonders "why did 22 tests skip?".
  *
  * This helper consolidates the env contract:
@@ -16,7 +16,7 @@
  * with copy-paste-ready export commands for the missing pieces, and the
  * caller's describe block runs as `describe.skipIf(!env)` (or analogous).
  * If the caller passes `{ throwOnMissing: true }`, it throws an
- * IntegrationSetupError instead, useful in tests that are themselves the
+ * IntegrationSetupError instead — useful in tests that are themselves the
  * "you forgot the setup" guard (e.g. the documentation/skip-reason tests).
  *
  * Env contract (mirror of CONTRIBUTING.md):
@@ -136,7 +136,7 @@ function renderSetupBanner(
   return [
     "",
     "════════════════════════════════════════════════════════════════════",
-    "  Live BDD setup needed, missing env",
+    "  Live BDD setup needed — missing env",
     "════════════════════════════════════════════════════════════════════",
     `Missing: ${missing.join(", ")}`,
     "",

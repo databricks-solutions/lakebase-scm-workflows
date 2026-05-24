@@ -1,4 +1,4 @@
-// Static scaffold operations, port of ScaffoldService's template-copy
+// Static scaffold operations — port of ScaffoldService's template-copy
 // methods. Spring Initializr (Java/Kotlin starter download) is a separate
 // concern, ported in FEIP-7073.
 //
@@ -62,7 +62,7 @@ function langDir(language: ProjectLanguage, opts?: ScaffoldOptions): string {
 
 /**
  * Recursively copy srcDir into destDir. Returns paths relative to destDir
- * (e.g. ["foo.sh", "ci/bar.sh"]), fixes the bug in the extension's
+ * (e.g. ["foo.sh", "ci/bar.sh"]) — fixes the bug in the extension's
  * ScaffoldService.copyDir which returned flat names and silently lost
  * subdirectory structure (caller couldn't actually stat the returned paths).
  */
@@ -222,7 +222,7 @@ export async function patchWorkflowsForRunnerType(targetDir: string, runnerType:
     // (Bug-fix from ScaffoldService: allow optional `if:` / other directives
     // between "- name: Set up JDK" and "uses: actions/setup-java@v4". The
     // extension's regex required them adjacent and silently no-op'd against
-    // current templates, surface this back via FEIP-7065 when the extension
+    // current templates — surface this back via FEIP-7065 when the extension
     // re-routes to this module.)
     content = content.replace(
       /- name: Set up JDK\n(?:\s+[\w-]+:.*\n)*\s+uses: actions\/setup-java@v4\n\s+with:\n(?:\s+#[^\n]*\n)*(?:\s+[\w-]+:.*\n)+/g,
@@ -304,7 +304,7 @@ export async function scaffoldStaticAll(args: ScaffoldStaticAllArgs): Promise<Sc
 /**
  * Full scaffold: static files (scaffoldStaticAll) + language-specific
  * project (Spring Initializr for Java/Kotlin; static template copy for
- * Python/Node). Mirror of ScaffoldService.scaffoldAll. Order matters.
+ * Python/Node). Mirror of ScaffoldService.scaffoldAll. Order matters —
  * language project is deployed LAST so its src/ doesn't shadow scaffold
  * scripts (which live at the project root, not under src/).
  */

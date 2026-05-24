@@ -33,7 +33,7 @@ describe("endpointPath", () => {
   });
 });
 
-describe.skipIf(!live)("getEndpoint, live read", () => {
+describe.skipIf(!live)("getEndpoint — live read", () => {
   it("returns { host, state } for a real branch endpoint", async () => {
     const ep = await getEndpoint({ instance: TEST_INSTANCE!, branch: TEST_BRANCH! });
     if (ep) {
@@ -41,7 +41,7 @@ describe.skipIf(!live)("getEndpoint, live read", () => {
       expect(typeof ep.state).toBe("string");
     } else {
       // Branch may not have an endpoint yet (still provisioning).
-      // The contract is "returns undefined when no host yet", also acceptable.
+      // The contract is "returns undefined when no host yet" — also acceptable.
       expect(ep).toBeUndefined();
     }
   });
@@ -55,7 +55,7 @@ describe.skipIf(!live)("getEndpoint, live read", () => {
   });
 });
 
-describe.skipIf(!live)("getCredential, live destructive read (mints a token)", () => {
+describe.skipIf(!live)("getCredential — live destructive read (mints a token)", () => {
   it("returns { token, email } against a real branch", async () => {
     const cred = await getCredential({ instance: TEST_INSTANCE!, branch: TEST_BRANCH! });
     expect(cred.token).toBeTruthy();
@@ -63,14 +63,14 @@ describe.skipIf(!live)("getCredential, live destructive read (mints a token)", (
   }, 30_000);
 });
 
-describe("branch-endpoint, skip-when-env-missing", () => {
+describe("branch-endpoint — skip-when-env-missing", () => {
   it("documents the skip reason when CLI or env is missing", () => {
     if (live) return;
     // eslint-disable-next-line no-console
     console.log(
       !cliAvailable
-        ? "`databricks` CLI not available, live branch-endpoint suite skipped."
-        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, live branch-endpoint suite skipped."
+        ? "`databricks` CLI not available — live branch-endpoint suite skipped."
+        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set — live branch-endpoint suite skipped."
     );
     expect(live).toBe(false);
   });

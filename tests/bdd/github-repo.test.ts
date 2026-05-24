@@ -5,7 +5,7 @@ import { resolveGitHubToken } from "../../scripts/github/auth.js";
 
 // Live skip-when-no-auth: only fires when a real GitHub token can be
 // resolved. createRepo/deleteRepo are destructive and need a target test
-// org, those live in the equivalence test (FEIP-7071), not here. This
+// org — those live in the equivalence test (FEIP-7071), not here. This
 // suite only asserts that the read paths work end-to-end.
 
 const tokenAvailable = (() => {
@@ -21,7 +21,7 @@ const tokenAvailable = (() => {
   }
 })();
 
-describe.skipIf(!tokenAvailable)("github/repo, live read paths", () => {
+describe.skipIf(!tokenAvailable)("github/repo — live read paths", () => {
   it("getCurrentUser returns a non-empty GitHub login", async () => {
     const login = await getCurrentUser();
     expect(login).toBeTruthy();
@@ -30,25 +30,25 @@ describe.skipIf(!tokenAvailable)("github/repo, live read paths", () => {
   });
 
   it("getRepoFullName resolves the canonical slug for a known public repo", async () => {
-    // octokit/octokit.js is the package we depend on, definitely public,
+    // octokit/octokit.js is the package we depend on — definitely public,
     // definitely stable, definitely reachable from any GitHub-authed env.
     const full = await getRepoFullName("octokit/octokit.js");
     expect(full.toLowerCase()).toBe("octokit/octokit.js");
   });
 });
 
-describe("github/repo, skip-when-no-auth", () => {
+describe("github/repo — skip-when-no-auth", () => {
   it("documents the skip reason when no token is available", () => {
     if (tokenAvailable) return;
     // eslint-disable-next-line no-console
     console.log(
-      "GITHUB_TOKEN / `gh auth token` not available, live github/repo suite skipped."
+      "GITHUB_TOKEN / `gh auth token` not available — live github/repo suite skipped."
     );
     expect(tokenAvailable).toBe(false);
   });
 });
 
-describe("github/repo, token resolution wiring", () => {
+describe("github/repo — token resolution wiring", () => {
   it("resolveGitHubToken either returns a token or throws the documented error", async () => {
     try {
       const t = await resolveGitHubToken();

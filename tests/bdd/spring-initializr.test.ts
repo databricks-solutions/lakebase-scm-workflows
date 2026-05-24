@@ -114,7 +114,7 @@ describe("deploySpringStarter (LAKEBASE_SCAFFOLD_FALLBACK=1)", () => {
     await deploySpringStarter({ targetDir: dir, language: "java", projectName: "test-app" });
     expect(fs.existsSync(path.join(dir, "pom.xml"))).toBe(true);
     expect(fs.existsSync(path.join(dir, "mvnw"))).toBe(true);
-    // Spring overlay applied, application.properties from templates/spring/
+    // Spring overlay applied — application.properties from templates/spring/
     expect(fs.existsSync(path.join(dir, "src", "main", "resources", "application.properties"))).toBe(true);
     // mvnw executable
     const stat = fs.statSync(path.join(dir, "mvnw"));
@@ -129,7 +129,7 @@ describe("deploySpringStarter (LAKEBASE_SCAFFOLD_FALLBACK=1)", () => {
   });
 });
 
-describe("deploySpringStarter, live (skip-when-network-disabled)", () => {
+describe("deploySpringStarter — live (skip-when-network-disabled)", () => {
   // Set LAKEBASE_TEST_INITIALIZR=1 to exercise the live start.spring.io path.
   // We skip by default to keep CI hermetic; the bundled fallback covers the
   // same code paths post-extraction.
@@ -147,7 +147,7 @@ describe("deploySpringStarter, live (skip-when-network-disabled)", () => {
   it("documents the skip reason when not enabled", () => {
     if (liveOk) return;
     // eslint-disable-next-line no-console
-    console.log("LAKEBASE_TEST_INITIALIZR not set, live Initializr fetch skipped.");
+    console.log("LAKEBASE_TEST_INITIALIZR not set — live Initializr fetch skipped.");
     expect(liveOk).toBe(false);
   });
 });

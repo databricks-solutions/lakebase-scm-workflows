@@ -8,7 +8,7 @@ import { exec } from "../util/exec.js";
  * Clone a Git repository into `parentDir`. Git creates the target dir as a
  * subdir of `parentDir` named after the repo.
  *
- * For HTTPS URLs, git will use whatever credential helper is configured.
+ * For HTTPS URLs, git will use whatever credential helper is configured —
  * typically the macOS keychain or `osxkeychain`. For SSH URLs, the user's
  * ssh agent. No GitHub token plumbing happens here.
  *

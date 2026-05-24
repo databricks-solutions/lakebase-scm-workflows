@@ -18,7 +18,7 @@ const TEST_INSTANCE = process.env.LAKEBASE_TEST_INSTANCE;
 const TEST_BRANCH = process.env.LAKEBASE_TEST_BRANCH;
 const live = cliAvailable && !!TEST_INSTANCE && !!TEST_BRANCH;
 
-describe.skipIf(!live)("queryBranchSchema, live pg connect", () => {
+describe.skipIf(!live)("queryBranchSchema — live pg connect", () => {
   it("returns an array (may be empty for a freshly provisioned branch)", async () => {
     const schema = await queryBranchSchema({
       instance: TEST_INSTANCE!,
@@ -51,14 +51,14 @@ describe.skipIf(!live)("queryBranchSchema, live pg connect", () => {
   }, 45_000);
 });
 
-describe("branch-schema, skip-when-env-missing", () => {
+describe("branch-schema — skip-when-env-missing", () => {
   it("documents the skip reason when CLI or env is missing", () => {
     if (live) return;
     // eslint-disable-next-line no-console
     console.log(
       !cliAvailable
-        ? "`databricks` CLI not available, live branch-schema suite skipped."
-        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, live branch-schema suite skipped."
+        ? "`databricks` CLI not available — live branch-schema suite skipped."
+        : "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set — live branch-schema suite skipped."
     );
     expect(live).toBe(false);
   });

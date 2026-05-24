@@ -3,7 +3,7 @@
 // Parent resolution precedence (ported from
 // LakebaseService.createBranch):
 //   1. Explicit `parentBranch` arg (caller-supplied; "branch from X" override).
-//   2. The branch the caller is "currently on" (`currentBranch` arg), git-like
+//   2. The branch the caller is "currently on" (`currentBranch` arg) — git-like
 //      fork-from-current semantics. Skipped if it equals the target.
 //   3. Project default branch (usually `production`).
 //
@@ -53,7 +53,7 @@ export interface CreateBranchArgs extends BranchLookupOpts {
  * Idempotent on a true retry: if a branch with the sanitized name already
  * exists AND its actual source matches the source the caller is asking
  * for now, returns the existing branch. If the existing branch was forked
- * from a *different* source, throws, silently returning a branch with
+ * from a *different* source, throws — silently returning a branch with
  * the wrong lineage would mask the user's intent (e.g. they meant to
  * branch from staging this time, but a stale branch from production
  * still occupies the name).
@@ -62,7 +62,7 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
   const sanitized = sanitizeBranchName(args.branch);
   const lookup: BranchLookupOpts = { instance: args.instance, host: args.host };
 
-  // Resolve the source (parent) branch full path first, needed both for
+  // Resolve the source (parent) branch full path first — needed both for
   // create AND for the idempotency-vs-conflict comparison below.
   let sourceBranchPath: string | undefined;
   if (args.parentBranch) {
@@ -75,7 +75,7 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
     const def = await getDefaultBranch(lookup);
     if (!def) {
       throw new LakebaseBranchError(
-        `Could not find a parent branch for "${sanitized}", no parentBranch override, ` +
+        `Could not find a parent branch for "${sanitized}" — no parentBranch override, ` +
           `no currentBranch hint, and the project has no default branch.`
       );
     }

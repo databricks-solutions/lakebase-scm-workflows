@@ -27,14 +27,14 @@ const cliAvailable = (() => {
 const TEST_INSTANCE = process.env.LAKEBASE_TEST_INSTANCE;
 const liveLookup = cliAvailable && !!TEST_INSTANCE;
 
-describe.skipIf(!liveLookup)("lakebase-project, live read path", () => {
+describe.skipIf(!liveLookup)("lakebase-project — live read path", () => {
   it("getDefaultBranchId returns either a string id or empty (never throws)", async () => {
     const id = await getDefaultBranchId({ projectId: TEST_INSTANCE! });
     expect(typeof id).toBe("string");
   });
 });
 
-describe("lakebase-project, error wrapping", () => {
+describe("lakebase-project — error wrapping", () => {
   it("LakebaseProjectError carries the right name", () => {
     const err = new LakebaseProjectError("oops");
     expect(err.name).toBe("LakebaseProjectError");
@@ -51,18 +51,18 @@ describe("lakebase-project, error wrapping", () => {
   });
 });
 
-describe("lakebase-project, skip-when-cli-missing", () => {
+describe("lakebase-project — skip-when-cli-missing", () => {
   it("documents the skip reason when the `databricks` CLI is unavailable", () => {
     if (cliAvailable) return;
     // eslint-disable-next-line no-console
-    console.log("`databricks` CLI not on PATH, live lakebase-project suite skipped.");
+    console.log("`databricks` CLI not on PATH — live lakebase-project suite skipped.");
     expect(cliAvailable).toBe(false);
   });
 
   it("documents the skip reason when LAKEBASE_TEST_INSTANCE is unset", () => {
     if (TEST_INSTANCE) return;
     // eslint-disable-next-line no-console
-    console.log("LAKEBASE_TEST_INSTANCE not set, live lakebase-project read skipped.");
+    console.log("LAKEBASE_TEST_INSTANCE not set — live lakebase-project read skipped.");
     expect(!!TEST_INSTANCE).toBe(false);
   });
 });

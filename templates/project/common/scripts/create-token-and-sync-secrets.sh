@@ -3,7 +3,7 @@
 # to GitHub repo secrets for CI.
 #
 # Prefers a long-lived PAT (90 days) over the OAuth session token so that
-# GitHub Actions reruns (which can fire hours after the last push) do not
+# GitHub Actions reruns — which can fire hours after the last push — do not
 # silently fail when the short-lived (~1h) OAuth session expires. Falls back
 # to OAuth only if the workspace disables PAT creation.
 #
@@ -78,9 +78,9 @@ fi
 
 # Fallback: OAuth session token (short-lived, ~1h) for workspaces where PATs
 # are disabled. The pre-push hook will re-mint on every push; reruns that
-# fire >1h after the last push will fail, prefer PAT if you can.
+# fire >1h after the last push will fail — prefer PAT if you can.
 if [ -z "$TOKEN_VALUE" ]; then
-  echo "PAT creation failed, workspace may have PATs disabled. Falling back to OAuth token..."
+  echo "PAT creation failed — workspace may have PATs disabled. Falling back to OAuth token..."
   TOKEN_VALUE="$(databricks auth token $PROFILE -o json 2>/dev/null | jq -r '.access_token // empty')" || true
   if [ -n "$TOKEN_VALUE" ]; then
     TOKEN_KIND="OAuth session (~1h)"

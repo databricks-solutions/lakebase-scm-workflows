@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# lakebase-app-dev-kit, multi-target installer
+# lakebase-app-dev-kit — multi-target installer
 #
 # Modeled on databricks-solutions/ai-dev-kit/install.sh. One canonical
 # skill tree (skills/lakebase-scm-workflows/), copied into the path each
@@ -23,11 +23,11 @@
 #   bash <(curl -sL .../install.sh) --install-to-genie [--profile DEFAULT]
 #
 # Targets supported in this release:
-#   claude, Claude Code (terminal). Path: .claude/skills/<name>/
-#   cursor, Cursor. Path: .cursor/skills/<name>/
-#   genie, Databricks Genie Code (workspace upload via `databricks workspace import-dir`)
-#   claude-desktop, Claude Desktop via the MCP server at apps/mcp-server/. Path: .mcp.json
-#   openai-foundry, OpenAI Foundry / Codex tool-spec JSON. Path: tools/openai-foundry/lakebase-app-dev-kit.tools.json
+#   claude          — Claude Code (terminal). Path: .claude/skills/<name>/
+#   cursor          — Cursor. Path: .cursor/skills/<name>/
+#   genie           — Databricks Genie Code (workspace upload via `databricks workspace import-dir`)
+#   claude-desktop  — Claude Desktop via the MCP server at apps/mcp-server/. Path: .mcp.json
+#   openai-foundry  — OpenAI Foundry / Codex tool-spec JSON. Path: tools/openai-foundry/lakebase-app-dev-kit.tools.json
 
 set -e
 
@@ -141,9 +141,9 @@ install_one() {
   # surface artifacts that the user wires into the agent manually
   # (Claude Desktop's claude_desktop_config.json, Foundry's tool config).
   if [ "$tool" = "claude-desktop" ]; then
-    echo -e "${GREEN}  ✓ claude-desktop${NC}, copy the entry from ${BLUE}$REPO_ROOT/.mcp.json${NC} into your claude_desktop_config.json (under \"mcpServers\")."
+    echo -e "${GREEN}  ✓ claude-desktop${NC} — copy the entry from ${BLUE}$REPO_ROOT/.mcp.json${NC} into your claude_desktop_config.json (under \"mcpServers\")."
     echo -e "    First-time setup: ${BLUE}cd $REPO_ROOT && npm install && npm run build${NC}"
-    echo -e "    Note: @modelcontextprotocol/sdk is an optional peer dep, npm pulls it in during the substrate's dev install (above), so no extra step needed when running the bin from the cloned repo."
+    echo -e "    Note: @modelcontextprotocol/sdk is an optional peer dep — npm pulls it in during the substrate's dev install (above), so no extra step needed when running the bin from the cloned repo."
     return
   fi
   if [ "$tool" = "openai-foundry" ]; then
@@ -152,7 +152,7 @@ install_one() {
       echo -e "${YELLOW}  ! openai-foundry tool spec not built. Generating now...${NC}"
       ( cd "$REPO_ROOT" && python3 scripts/openai-foundry.py )
     fi
-    echo -e "${GREEN}  ✓ openai-foundry${NC}, paste ${BLUE}$foundry_json${NC} into your Foundry / Codex tool config."
+    echo -e "${GREEN}  ✓ openai-foundry${NC} — paste ${BLUE}$foundry_json${NC} into your Foundry / Codex tool config."
     return
   fi
 
@@ -170,7 +170,7 @@ install_one() {
   echo -e "${GREEN}  ✓ $tool → $dest${NC}"
 }
 
-# Genie upload, uploads the skills/ tree to the user's Databricks workspace.
+# Genie upload — uploads the skills/ tree to the user's Databricks workspace.
 # Mirrors aikit's databricks-skills/install_skills.sh --install-to-genie.
 install_to_genie() {
   if ! command -v databricks >/dev/null 2>&1; then

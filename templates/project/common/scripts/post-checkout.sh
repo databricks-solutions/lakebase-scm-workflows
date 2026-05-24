@@ -51,7 +51,7 @@ set +a
 
 # Capture the Lakebase branch the user was on BEFORE this checkout. The hook
 # will rewrite .env for the new branch, so this is our only chance to record
-# the "previous" state, used below as the default fork source for new
+# the "previous" state — used below as the default fork source for new
 # feature branches (mirrors `git checkout -b`'s "fork from current").
 PREV_LAKEBASE_BRANCH_ID="${LAKEBASE_BRANCH_ID:-}"
 
@@ -63,14 +63,14 @@ if [ -z "$PROJ_ID" ]; then
   exit 0
 fi
 
-# Optional: treat a non-standard git branch like main/master, common in
+# Optional: treat a non-standard git branch like main/master — common in
 # shared-monorepo conventions where the trunk is e.g. `team-alpha/project-foo`
 # rather than `main`.
 TRUNK_ALIAS="${LAKEBASE_TRUNK_BRANCH:-}"
 
 # Optional: git branch that pairs with the Lakebase `staging` branch. When the
 # user is on this git branch, .env is pointed at the `staging` Lakebase branch
-# (which must already exist, this hook does NOT auto-create it).
+# (which must already exist — this hook does NOT auto-create it).
 STAGING_ALIAS="${LAKEBASE_STAGING_BRANCH:-}"
 
 if ! command -v databricks >/dev/null 2>&1; then
@@ -105,7 +105,7 @@ DB_NAME="databricks_postgres"
 maybe_npm_install() {
   if [ -f "$WORK_TREE/client/package.json" ] && [ ! -d "$WORK_TREE/client/node_modules" ]; then
     if command -v npm >/dev/null 2>&1; then
-      echo "React client: node_modules missing, running npm install..."
+      echo "React client: node_modules missing — running npm install..."
       npm install --prefix "$WORK_TREE/client" --silent
       echo "React client: ready."
     fi
@@ -196,7 +196,7 @@ get_or_create_endpoint() {
 
 # --- Find the default (main) Lakebase branch ---
 # API returns { "branches": [ ... ] }; CLI may unwrap to [ ... ]. Support both.
-# Prefer the name component (last segment of .name) over uid, the create-branch API requires it.
+# Prefer the name component (last segment of .name) over uid — the create-branch API requires it.
 DEFAULT_BRANCH_UID="$(databricks postgres list-branches "$PROJ_PATH" -o json 2>/dev/null \
   | jq -r '(if type == "array" then . elif type == "object" then (.branches // .items // []) else [] end) | .[] | select((.status.default == true) or (.is_default == true)) | (if .name then (.name | split("/") | last) else (.uid // .id // empty) end)' | head -1)"
 
@@ -234,7 +234,7 @@ fi
 
 # --- staging branch: point to the Lakebase `staging` branch ---
 # Symmetric to the trunk match above but targets the `staging` Lakebase branch
-# instead of the default. The `staging` branch must already exist, unlike
+# instead of the default. The `staging` branch must already exist — unlike
 # feature branches, this hook does NOT auto-create it (staging is a persistent,
 # shared branch that accumulates merged schema drift and must be bootstrapped
 # deliberately).
@@ -245,7 +245,7 @@ if [ -n "$STAGING_ALIAS" ] && [ "$BRANCH" = "$STAGING_ALIAS" ]; then
 
   if [ -z "$STAGING_EXISTS" ]; then
     echo "Lakebase: on $BRANCH but the Lakebase 'staging' branch does not exist."
-    echo "  staging is a persistent branch and must be bootstrapped deliberately, this hook will not auto-create it."
+    echo "  staging is a persistent branch and must be bootstrapped deliberately — this hook will not auto-create it."
     echo "  Create it once with: databricks postgres create-branch $PROJ_PATH staging --json '{\"spec\": {\"source_branch\": \"${PROJ_PATH}/branches/${DEFAULT_BRANCH_UID}\", \"no_expiry\": true}}'"
     exit 0
   fi
@@ -277,14 +277,14 @@ LAKEBASE_BRANCH="$("$SCRIPT_DIR/sanitize-branch-name.sh" "$BRANCH")"
 BRANCH_PATH="${PROJ_PATH}/branches/${LAKEBASE_BRANCH}"
 
 # Resolve the parent (source) Lakebase branch. Precedence:
-#   1. LAKEBASE_BASE_BRANCH from .env, explicit 3-tier configuration wins
+#   1. LAKEBASE_BASE_BRANCH from .env — explicit 3-tier configuration wins
 #      (e.g. LAKEBASE_BASE_BRANCH=staging for a feature → staging → prod flow).
 #   2. The Lakebase branch the user was JUST ON (pre-checkout). Mirrors
-#      `git checkout -b`'s semantics, the new feature inherits from
+#      `git checkout -b`'s semantics — the new feature inherits from
 #      whichever branch you were working on. If you were on `staging`,
 #      new features fork from `staging`; if you were on another feature,
 #      the new one forks from it.
-#   3. Project default (production), first-time setup, or previous
+#   3. Project default (production) — first-time setup, or previous
 #      branch's Lakebase state couldn't be resolved.
 # The previous Lakebase branch is only usable as a source if it actually
 # still exists and is READY; otherwise fall through to the default.
@@ -348,7 +348,7 @@ fi
 
 update_env "$HOST" "$EMAIL" "$TOKEN" "$LAKEBASE_BRANCH"
 
-# Verify connection works (non-blocking, skip if psql not available)
+# Verify connection works (non-blocking — skip if psql not available)
 if command -v psql >/dev/null 2>&1; then
   if psql "host=$HOST port=5432 dbname=databricks_postgres user=$EMAIL password=$TOKEN sslmode=require" -c "SELECT 1" >/dev/null 2>&1; then
     echo "Lakebase: branch '$LAKEBASE_BRANCH' ready. Connection verified. Updated .env."
@@ -361,7 +361,7 @@ if command -v psql >/dev/null 2>&1; then
       if psql "host=$HOST port=5432 dbname=databricks_postgres user=$EMAIL password=$TOKEN sslmode=require" -c "SELECT 1" >/dev/null 2>&1; then
         echo "Lakebase: connection verified on retry."
       else
-        echo "Lakebase: warning, connection still failing. .env updated but credentials may need manual refresh."
+        echo "Lakebase: warning — connection still failing. .env updated but credentials may need manual refresh."
       fi
     fi
   fi
