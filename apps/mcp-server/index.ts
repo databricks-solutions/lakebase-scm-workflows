@@ -22,7 +22,7 @@ export async function createServer(): Promise<Server> {
   const server = new Server(
     {
       name: "lakebase-scm-workflows",
-      version: "0.1.0-alpha.1",
+      version: "0.1.0-alpha.2",
     },
     {
       capabilities: {

@@ -143,6 +143,7 @@ install_one() {
   if [ "$tool" = "claude-desktop" ]; then
     echo -e "${GREEN}  ✓ claude-desktop${NC} — copy the entry from ${BLUE}$REPO_ROOT/.mcp.json${NC} into your claude_desktop_config.json (under \"mcpServers\")."
     echo -e "    First-time setup: ${BLUE}cd $REPO_ROOT && npm install && npm run build${NC}"
+    echo -e "    Note: @modelcontextprotocol/sdk is an optional peer dep — npm pulls it in during the substrate's dev install (above), so no extra step needed when running the bin from the cloned repo."
     return
   fi
   if [ "$tool" = "openai-foundry" ]; then
