@@ -36,11 +36,15 @@ vi.mock("../../scripts/github/auth.js", () => ({
 import { TOOLS, findTool } from "../../apps/mcp-server/tools.js";
 
 describe("MCP tool registry", () => {
-  it("exposes exactly four tools", () => {
+  it("exposes the expected tool surface", () => {
     expect(TOOLS.map((t) => t.name).sort()).toEqual([
+      "lakebase_apply_migrations",
       "lakebase_create_project",
       "lakebase_get_connection",
       "lakebase_github_token",
+      "lakebase_list_migrations",
+      "lakebase_migration_status",
+      "lakebase_rollback_migration",
       "lakebase_schema_diff",
     ]);
   });

@@ -111,9 +111,13 @@ describe("MCP server stdio handshake", () => {
     const tools = (listResp.result as { tools: { name: string }[] }).tools;
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      "lakebase_apply_migrations",
       "lakebase_create_project",
       "lakebase_get_connection",
       "lakebase_github_token",
+      "lakebase_list_migrations",
+      "lakebase_migration_status",
+      "lakebase_rollback_migration",
       "lakebase_schema_diff",
     ]);
 

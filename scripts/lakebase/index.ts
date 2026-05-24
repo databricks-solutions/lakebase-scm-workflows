@@ -21,3 +21,24 @@ export * from "./scaffold-language.js";
 export * from "./scaffold.js";
 export * from "./schema-diff.js";
 export * from "./spring-initializr.js";
+export {
+  applyMigrations,
+  rollbackMigration,
+  migrationStatus,
+  listMigrations,
+  detectLanguage,
+  toolForLanguage,
+  MigrationError,
+  type MigrationLanguage,
+  type MigrationToolName,
+  type MigrationFile,
+  type ApplyMigrationsArgs,
+  type ApplyMigrationsResult,
+  type RollbackMigrationArgs,
+  type RollbackMigrationResult,
+  type MigrationStatusArgs,
+  type MigrationStatusResult,
+  type ListMigrationsArgs,
+  type AppliedMigration,
+  type PendingMigration,
+} from "./migrate.js";
