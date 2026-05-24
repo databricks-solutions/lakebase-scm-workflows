@@ -24,7 +24,7 @@ describe("scopes", () => {
   });
 });
 
-describe("resolveGitHubToken — GITHUB_TOKEN env path", () => {
+describe("resolveGitHubToken, GITHUB_TOKEN env path", () => {
   it("returns the env value when GITHUB_TOKEN is set", async () => {
     process.env.GITHUB_TOKEN = "ghp_TESTTOKEN_envset";
     const token = await resolveGitHubToken();
@@ -54,7 +54,7 @@ describe("resolveGitHubToken — GITHUB_TOKEN env path", () => {
 
 describe("tryVsCodeSession (pure-Node runtime)", () => {
   it("returns undefined when `vscode` is unresolvable (i.e. outside ext host)", async () => {
-    // Vitest runs in pure Node — the dynamic `import('vscode')` throws and we
+    // Vitest runs in pure Node, the dynamic `import('vscode')` throws and we
     // expect undefined, NOT a thrown error. This is the contract the agent
     // path relies on.
     delete process.env.GITHUB_TOKEN;
@@ -80,7 +80,7 @@ describe("tryGhAuthToken", () => {
 
   it.skipIf(!ghAvailable)("returns a non-empty token when gh is authenticated", () => {
     const token = tryGhAuthToken();
-    // gh may be installed but not authed — both outcomes are valid; assert
+    // gh may be installed but not authed, both outcomes are valid; assert
     // either undefined or a non-empty string.
     if (token !== undefined) {
       expect(token).not.toBe("");
@@ -94,7 +94,7 @@ describe("tryGhAuthToken", () => {
   });
 });
 
-describe("resolveGitHubToken — clear error when no source", () => {
+describe("resolveGitHubToken, clear error when no source", () => {
   it("throws a descriptive error when env unset, gh unavailable, vscode unresolvable", async () => {
     delete process.env.GITHUB_TOKEN;
     const ghAvailable = (() => {

@@ -3,7 +3,7 @@
 //
 // Stdio MCP server exposing scripts/lakebase + scripts/github operations
 // as MCP tools. Same canonical implementation as the CLI bins and the
-// extension — the MCP surface is a third presentation layer over the
+// extension, the MCP surface is a third presentation layer over the
 // same underlying functions.
 //
 // Wired into the substrate's `.mcp.json`. Claude Desktop, OpenAI Codex,

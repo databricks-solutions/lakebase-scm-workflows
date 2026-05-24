@@ -12,7 +12,7 @@ import * as path from "node:path";
 // crashes inside the substrate.
 //
 // Vitest runs source files in ESM mode, so unit tests against the source
-// CANNOT catch this — the bug only shows up against the built CJS bundle.
+// CANNOT catch this, the bug only shows up against the built CJS bundle.
 // This test exercises the CJS bundle directly and was added in response to
 // the python-devloop integration test discovering the regression. The fix
 // is `shims: true` in tsup.config.ts.
@@ -20,7 +20,7 @@ import * as path from "node:path";
 const DIST_CJS = path.resolve(__dirname, "../../dist/scripts/lakebase/index.cjs");
 const distExists = fs.existsSync(DIST_CJS);
 
-describe.skipIf(!distExists)("CJS bundle — import.meta.url shim works (tsup shims: true)", () => {
+describe.skipIf(!distExists)("CJS bundle, import.meta.url shim works (tsup shims: true)", () => {
   it("deployVscodeSettings resolves templates dir without crashing", () => {
     // deployVscodeSettings → templatesRoot → findTemplatesDir → fileURLToPath(import.meta.url)
     // If the shim is missing, findTemplatesDir throws TypeError("path must be string").
@@ -87,12 +87,12 @@ describe.skipIf(!distExists)("CJS bundle — import.meta.url shim works (tsup sh
   });
 });
 
-describe("CJS bundle — skip-when-missing", () => {
+describe("CJS bundle, skip-when-missing", () => {
   it("documents the skip reason when dist/scripts/lakebase/index.cjs isn't built", () => {
     if (distExists) return;
     // eslint-disable-next-line no-console
     console.log(
-      "dist/scripts/lakebase/index.cjs not found — run `npm run build` to enable the CJS bundle regression guard."
+      "dist/scripts/lakebase/index.cjs not found, run `npm run build` to enable the CJS bundle regression guard."
     );
     expect(distExists).toBe(false);
   });

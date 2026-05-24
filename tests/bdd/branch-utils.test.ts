@@ -35,7 +35,7 @@ describe("LakebaseBranchError", () => {
   });
 });
 
-describe("resolveBranchPath — short-circuit for full paths", () => {
+describe("resolveBranchPath, short-circuit for full paths", () => {
   it("returns the input unchanged when it's already a full resource name", async () => {
     const full = "projects/my-app/branches/feature-x";
     const result = await resolveBranchPath(full, { instance: "my-app" });
@@ -43,7 +43,7 @@ describe("resolveBranchPath — short-circuit for full paths", () => {
   });
 });
 
-describe.skipIf(!liveLookup)("branch-utils — live read against real Lakebase", () => {
+describe.skipIf(!liveLookup)("branch-utils, live read against real Lakebase", () => {
   it("listBranches returns an array (possibly empty)", async () => {
     const branches = await listBranches({ instance: TEST_INSTANCE! });
     expect(Array.isArray(branches)).toBe(true);
@@ -65,14 +65,14 @@ describe.skipIf(!liveLookup)("branch-utils — live read against real Lakebase",
   });
 });
 
-describe("branch-utils — skip-when-env-missing", () => {
+describe("branch-utils, skip-when-env-missing", () => {
   it("documents the skip reason when CLI or instance is missing", () => {
     if (liveLookup) return;
     // eslint-disable-next-line no-console
     console.log(
       cliAvailable
-        ? "LAKEBASE_TEST_INSTANCE not set — live branch-utils suite skipped."
-        : "`databricks` CLI not available — live branch-utils suite skipped."
+        ? "LAKEBASE_TEST_INSTANCE not set, live branch-utils suite skipped."
+        : "`databricks` CLI not available, live branch-utils suite skipped."
     );
     expect(liveLookup).toBe(false);
   });

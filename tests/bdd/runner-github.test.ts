@@ -20,7 +20,7 @@ const tokenAvailable = (() => {
   }
 })();
 
-describe.skipIf(!tokenAvailable)("github/runner — live read paths", () => {
+describe.skipIf(!tokenAvailable)("github/runner, live read paths", () => {
   // octokit/octokit.js is public, doesn't expose self-hosted runners to
   // arbitrary readers; the API typically returns 403 or empty depending
   // on token permissions. Either is a valid wrap-error path to test.
@@ -53,7 +53,7 @@ describe.skipIf(!tokenAvailable)("github/runner — live read paths", () => {
   });
 });
 
-describe("github/runner — error wrapping", () => {
+describe("github/runner, error wrapping", () => {
   it("GitHubRunnerError carries name + optional status", () => {
     const err = new GitHubRunnerError("oops", 404);
     expect(err.name).toBe("GitHubRunnerError");
@@ -62,11 +62,11 @@ describe("github/runner — error wrapping", () => {
   });
 });
 
-describe("github/runner — skip-when-no-auth", () => {
+describe("github/runner, skip-when-no-auth", () => {
   it("documents the skip reason when no token is available", () => {
     if (tokenAvailable) return;
     // eslint-disable-next-line no-console
-    console.log("GITHUB_TOKEN / `gh auth token` not available — live runner read suite skipped.");
+    console.log("GITHUB_TOKEN / `gh auth token` not available, live runner read suite skipped.");
     expect(tokenAvailable).toBe(false);
   });
 });

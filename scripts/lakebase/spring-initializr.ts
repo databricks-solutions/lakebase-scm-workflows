@@ -1,9 +1,9 @@
 // Spring Initializr client + the deploy orchestrator that ScaffoldService
 // used internally. Two surfaces:
 //
-//   - SpringInitializrClient — HTTP client for start.spring.io's metadata
+//   - SpringInitializrClient, HTTP client for start.spring.io's metadata
 //     and starter.zip endpoints. Ported from src/services/springInitializrClient.ts.
-//   - deploySpringStarter — orchestrates fetch + extract + overlay + pom
+//   - deploySpringStarter, orchestrates fetch + extract + overlay + pom
 //     patch + fallback. Ported from ScaffoldService.deploySpringFromInitializr.
 //
 // Network-failure fallback uses templates/project/{java,kotlin}/fallback/

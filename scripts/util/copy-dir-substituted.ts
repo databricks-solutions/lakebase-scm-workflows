@@ -27,7 +27,7 @@ export function copyDirSubstituted(
     const srcPath = path.join(srcDir, file);
     const destPath = path.join(destDir, file);
     if (fs.statSync(srcPath).isDirectory()) {
-      // Subdirs use a fresh empty skip set — we only filter at the top level.
+      // Subdirs use a fresh empty skip set, we only filter at the top level.
       copyDirSubstituted(srcPath, destPath, { projectName: args.projectName, skipEntries: new Set() });
     } else {
       let content = fs.readFileSync(srcPath, "utf-8");

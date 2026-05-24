@@ -26,7 +26,7 @@ Usage:
     python3 scripts/openai-foundry.py             # regenerate the JSON
     python3 scripts/openai-foundry.py validate    # CI mode (exit 1 on drift)
 
-Build dependency: dist/apps/mcp-server/dump-tools.js must exist —
+Build dependency: dist/apps/mcp-server/dump-tools.js must exist.
 run `npm run build` first (or invoke `npm prepare`, which the
 `prepare` script in package.json runs after install).
 """

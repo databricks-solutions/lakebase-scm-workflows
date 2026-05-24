@@ -57,7 +57,7 @@ export async function deployLanguageProject(args: DeployLanguageProjectArgs): Pr
     return;
   }
 
-  // Python / Node.js — static template copy with placeholder substitution.
+  // Python / Node.js, static template copy with placeholder substitution.
   const templatesDir = args.templatesDir ?? findTemplatesDir();
   const langSrc = path.join(templatesDir, args.language);
   if (!fs.existsSync(langSrc)) {

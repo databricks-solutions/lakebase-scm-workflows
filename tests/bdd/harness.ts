@@ -4,9 +4,9 @@
 // state whether invoked through the extension call site or the agent call
 // site. This harness exposes the three helpers tests use to assert that:
 //
-//   runViaExtension(op, args) — invoke the op the way the VS Code extension does
-//   runViaAgent(op, args)     — invoke the op the way an agent does (node scripts/lakebase/<op>.js)
-//   assertEquivalent(a, b)    — compare the two outcomes (on-disk diff, git state, Lakebase state)
+//   runViaExtension(op, args), invoke the op the way the VS Code extension does
+//   runViaAgent(op, args), invoke the op the way an agent does (node scripts/lakebase/<op>.js)
+//   assertEquivalent(a, b), compare the two outcomes (on-disk diff, git state, Lakebase state)
 //
 // Implementations are deliberately thin until the first operation lands.
 // Each `extract_*` JIRA sub-task (FEIP-7062..7064) extends these helpers
@@ -46,7 +46,7 @@ export function assertEquivalent(a: OpResult, b: OpResult): void {
   if (a.exitCode !== b.exitCode) {
     throw new Error(`Exit code mismatch on ${a.op}: extension=${a.exitCode} agent=${b.exitCode}`);
   }
-  // Files touched should be identical sets (order ignored — caller pre-sorts)
+  // Files touched should be identical sets (order ignored, caller pre-sorts)
   const filesA = a.filesTouched.join("\n");
   const filesB = b.filesTouched.join("\n");
   if (filesA !== filesB) {

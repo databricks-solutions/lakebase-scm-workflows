@@ -65,7 +65,7 @@ describe.skipIf(!process.env.PEER_DEP_INTEGRATION)(
       try {
         // Skip --json: npm pack runs `prepare` (tsup) and prints its
         // output to stdout, which corrupts JSON parsing. Compute the
-        // tarball name from package.json — npm's naming is deterministic:
+        // tarball name from package.json, npm's naming is deterministic:
         // <scope-stripped>-<name>-<version>.tgz.
         const pkg = readPkg() as PackageJson & { name?: string };
         const pkgName = pkg.name ?? "@databricks-solutions/lakebase-app-dev-kit";

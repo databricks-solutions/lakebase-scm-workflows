@@ -50,7 +50,7 @@ describe("get-connection --output pool (skip-when-env-missing)", () => {
     if (!skip) return;
     // eslint-disable-next-line no-console
     console.log(
-      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set — Pool live suite skipped."
+      "LAKEBASE_TEST_INSTANCE/LAKEBASE_TEST_BRANCH not set, Pool live suite skipped."
     );
     expect(skip).toBe(true);
   });

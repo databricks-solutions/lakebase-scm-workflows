@@ -12,7 +12,7 @@
 #     Resolves target Lakebase branch via scripts/ci/resolve-lakebase-branch.sh
 #     (same mapping used by pr.yml and scripts/post-checkout.sh).
 #   - cleanup-lakebase-branches: runs on pull_request closed+merged regardless
-#     of base.ref — any merged feature branch's ci-pr-N + its feature Lakebase
+#     of base.ref, any merged feature branch's ci-pr-N + its feature Lakebase
 #     clone are torn down.
 #
 # Auth: OAuth token refreshed by pre-push hook and synced to DATABRICKS_TOKEN secret.
@@ -22,7 +22,7 @@ on:
   push:
     # Add every promotion target here. 'main' is the production boundary; 'staging'
     # is the pre-prod boundary for two-tier projects. Feature branches don't
-    # trigger this — they use pr.yml's CI branch.
+    # trigger this, they use pr.yml's CI branch.
     branches: [main, staging]
   pull_request:
     types: [closed]
@@ -236,7 +236,7 @@ jobs:
           fi
 
           # job.status reflects whether the migration step (or any earlier
-          # step in this job) failed — the failure() / success() boundary that
+          # step in this job) failed, the failure() / success() boundary that
           # decides preserve-vs-delete. The migration step has no `id`, so
           # there's no per-step outcome to consult; the job-level status is
           # the authoritative signal.
@@ -352,7 +352,7 @@ jobs:
           echo "Schema verification passed. All $(echo "$EXPECTED_TABLES" | wc -l | tr -d ' ') expected tables exist on target '${LAKEBASE_BRANCH_NAME}'."
 
   # Separate job: branch cleanup runs only on PR merge (not direct pushes to main).
-  # Uses PR event data directly — no commit message parsing needed.
+  # Uses PR event data directly, no commit message parsing needed.
   cleanup-lakebase-branches:
     runs-on: self-hosted
     # Fire on ANY merged PR regardless of base.ref. Two-tier: feature→staging

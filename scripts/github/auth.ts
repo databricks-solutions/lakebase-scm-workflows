@@ -3,7 +3,7 @@
 // Both the VS Code extension and the agent call this module. Same module,
 // same behavior, different runtime contexts.
 //
-//   1. VS Code session  (dynamic `import('vscode')` — resolves only inside
+//   1. VS Code session  (dynamic `import('vscode')`, resolves only inside
 //                        the extension host; throws+catches in pure Node)
 //   2. GITHUB_TOKEN env var
 //   3. `gh auth token`  (catches users with the gh CLI authenticated)
@@ -21,11 +21,11 @@ export const GITHUB_SCOPES = ["repo", "workflow", "delete_repo"] as const;
 /**
  * Resolve a GitHub token through the unified fallback chain.
  *
- * Non-interactive — never prompts. For the interactive sign-in UX
+ * Non-interactive: never prompts. For the interactive sign-in UX
  * (`createIfNone: true`), the extension's `ensureGitHubAuth()` wrapper
  * calls `tryVsCodeSession({ createIfNone: true })` directly.
  *
- * @param scopes optional override of GITHUB_SCOPES (rare — most callers use the default)
+ * @param scopes optional override of GITHUB_SCOPES (rare, most callers use the default)
  */
 export async function resolveGitHubToken(
   scopes: readonly string[] = GITHUB_SCOPES

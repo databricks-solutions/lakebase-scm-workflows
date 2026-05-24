@@ -52,7 +52,7 @@ describe("getOwnerRepo", () => {
 
   it("returns empty string for a non-GitHub remote", async () => {
     const dir = await mkRepoWithRemote("https://gitlab.com/foo/bar");
-    // parseOwnerRepo will fall through to the generic path and may succeed —
+    // parseOwnerRepo will fall through to the generic path and may succeed.
     // we just assert it doesn't crash.
     const result = await getOwnerRepo(dir);
     expect(typeof result).toBe("string");

@@ -17,7 +17,7 @@ function mkTmp(): string {
   return dir;
 }
 
-describe("deployLanguageProject — python path (static copy)", () => {
+describe("deployLanguageProject, python path (static copy)", () => {
   it("copies the python template tree into targetDir", async () => {
     const dir = mkTmp();
     await deployLanguageProject({ targetDir: dir, language: "python", projectName: "py-test" });
@@ -38,7 +38,7 @@ describe("deployLanguageProject — python path (static copy)", () => {
   });
 });
 
-describe("deployLanguageProject — nodejs path", () => {
+describe("deployLanguageProject, nodejs path", () => {
   it("copies the nodejs template tree into targetDir", async () => {
     const dir = mkTmp();
     await deployLanguageProject({ targetDir: dir, language: "nodejs", projectName: "node-test" });
@@ -48,7 +48,7 @@ describe("deployLanguageProject — nodejs path", () => {
   });
 });
 
-describe("deployLanguageProject — java/kotlin path (Initializr w/ fallback)", () => {
+describe("deployLanguageProject, java/kotlin path (Initializr w/ fallback)", () => {
   const originalFlag = process.env.LAKEBASE_SCAFFOLD_FALLBACK;
   beforeEach(() => { process.env.LAKEBASE_SCAFFOLD_FALLBACK = "1"; });
   afterEach(() => {

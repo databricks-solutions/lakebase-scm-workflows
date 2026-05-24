@@ -4,7 +4,7 @@
 // create/get/merge PRs, read reviews and files and comments, list workflow
 // runs. Auth resolves through the canonical seam (scripts/github/auth.ts).
 //
-// The pairing-aware operation `mergePairedPullRequest` lives at the bottom —
+// The pairing-aware operation `mergePairedPullRequest` lives at the bottom.
 // it merges the GitHub PR and cleans up the matching feature Lakebase branch
 // best-effort.
 
@@ -443,7 +443,7 @@ export async function mergePairedPullRequest(
       );
     }
   } else if (deleteLakebaseBranch && !headBranch) {
-    warnings.push("Skipped Lakebase branch cleanup — could not resolve PR head branch name");
+    warnings.push("Skipped Lakebase branch cleanup, could not resolve PR head branch name");
   }
 
   return { message, headBranch, lakebaseBranchDeleted, warnings };

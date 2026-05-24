@@ -19,7 +19,7 @@ export interface DeleteBranchArgs extends BranchLookupOpts {
 
 /**
  * Delete a Lakebase branch. Throws when the branch can't be resolved
- * (no silent no-op — caller should catch + ignore if they want
+ * (no silent no-op, caller should catch + ignore if they want
  * idempotent semantics).
  */
 export async function deleteBranch(args: DeleteBranchArgs): Promise<void> {
