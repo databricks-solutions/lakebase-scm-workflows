@@ -1,7 +1,7 @@
 ---
 name: lakebase-scm-workflows
 description: "Opinionated git-Lakebase branch-pairing workflows. Use when scaffolding a Lakebase-paired project, creating/deleting Lakebase branches in lockstep with git branches, diffing parent-aware schemas, opening or merging PRs that touch Lakebase, or running the same operations the lakebase-scm-extension exposes in VS Code."
-compatibility: Requires databricks CLI (>= v0.294.0), git (>= 2.30), Node.js (>= 20), and @databricks-solutions/lakebase-scm-workflow-scripts
+compatibility: Requires databricks CLI (>= v0.294.0), git (>= 2.30), Node.js (>= 20), and @databricks-solutions/lakebase-app-dev-kit
 metadata:
   version: "0.1.0"
 parent: databricks-lakebase
@@ -30,8 +30,8 @@ For a JS/TS host (extension, Node service) that imports substrate functions, dep
 ```jsonc
 // host package.json
 "dependencies": {
-  "@databricks-solutions/lakebase-scm-workflow-scripts":
-    "github:databricks-solutions/lakebase-scm-workflows#<commit-sha-or-tag>"
+  "@databricks-solutions/lakebase-app-dev-kit":
+    "github:databricks-solutions/lakebase-app-dev-kit#<commit-sha-or-tag>"
 }
 ```
 
@@ -103,7 +103,7 @@ lakebase-github-token                 # print token to stdout
 lakebase-github-token --diagnose      # which sources are configured
 
 # JS callers:
-const { resolveGitHubToken } = require('@databricks-solutions/lakebase-scm-workflow-scripts');
+const { resolveGitHubToken } = require('@databricks-solutions/lakebase-app-dev-kit');
 const token = await resolveGitHubToken();
 ```
 
@@ -118,7 +118,7 @@ lakebase-get-connection --output dsn --instance <id> --branch <name>
 # -> libpq URL string (use for Flyway, Alembic, psql)
 
 # from JS:
-const { getConnection } = require('@databricks-solutions/lakebase-scm-workflow-scripts');
+const { getConnection } = require('@databricks-solutions/lakebase-app-dev-kit');
 const pool = await getConnection({ output: 'pool', instance, branch });
 # -> @databricks/lakebase pg.Pool with refresh-on-connect
 ```
@@ -164,7 +164,7 @@ import {
   createBranch,
   waitForBranchReady,
   deleteBranch,
-} from "@databricks-solutions/lakebase-scm-workflow-scripts";
+} from "@databricks-solutions/lakebase-app-dev-kit";
 
 const branch = await createBranch({
   instance: "proj-abc",
@@ -191,11 +191,11 @@ lakebase-get-connection --output dsn --instance proj-abc --branch br-feature
 # -> postgresql://... DSN
 
 # Just the endpoint metadata (host + state):
-node -e "import('@databricks-solutions/lakebase-scm-workflow-scripts').then(m => m.getEndpoint({instance:'proj-abc', branch:'br-feature'}).then(console.log))"
+node -e "import('@databricks-solutions/lakebase-app-dev-kit').then(m => m.getEndpoint({instance:'proj-abc', branch:'br-feature'}).then(console.log))"
 # -> { host: 'instance-...', state: 'ACTIVE' } | undefined
 
 # Just the raw token + email (resolves branch path, then mints via the single seam):
-const { getCredential } = require('@databricks-solutions/lakebase-scm-workflow-scripts');
+const { getCredential } = require('@databricks-solutions/lakebase-app-dev-kit');
 const { token, email } = await getCredential({ instance, branch });
 ```
 
@@ -203,11 +203,11 @@ const { token, email } = await getCredential({ instance, branch });
 
 ```bash
 # Live table inventory on a branch (queries information_schema via pg):
-node -e "import('@databricks-solutions/lakebase-scm-workflow-scripts').then(m => m.queryBranchSchema({instance:'proj-abc', branch:'br-feature'}).then(r => console.log(JSON.stringify(r, null, 2))))"
+node -e "import('@databricks-solutions/lakebase-app-dev-kit').then(m => m.queryBranchSchema({instance:'proj-abc', branch:'br-feature'}).then(r => console.log(JSON.stringify(r, null, 2))))"
 # -> [{ name: 'users', columns: [{ name: 'id', dataType: 'uuid' }, ...] }, ...]
 
 # Just table names:
-const { queryBranchTables } = require('@databricks-solutions/lakebase-scm-workflow-scripts');
+const { queryBranchTables } = require('@databricks-solutions/lakebase-app-dev-kit');
 const tables = await queryBranchTables({ instance, branch });
 ```
 

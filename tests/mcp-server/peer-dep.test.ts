@@ -68,7 +68,7 @@ describe.skipIf(!process.env.PEER_DEP_INTEGRATION)(
         // tarball name from package.json — npm's naming is deterministic:
         // <scope-stripped>-<name>-<version>.tgz.
         const pkg = readPkg() as PackageJson & { name?: string };
-        const pkgName = pkg.name ?? "@databricks-solutions/lakebase-scm-workflow-scripts";
+        const pkgName = pkg.name ?? "@databricks-solutions/lakebase-app-dev-kit";
         const fileBase = pkgName.replace(/^@/, "").replace(/\//g, "-");
         const tarballName = `${fileBase}-${pkg.version}.tgz`;
         execSync("npm pack --ignore-scripts", {
@@ -87,7 +87,7 @@ describe.skipIf(!process.env.PEER_DEP_INTEGRATION)(
               version: "0.0.0",
               private: true,
               dependencies: {
-                "@databricks-solutions/lakebase-scm-workflow-scripts": `file:${tgz}`,
+                "@databricks-solutions/lakebase-app-dev-kit": `file:${tgz}`,
               },
             },
             null,

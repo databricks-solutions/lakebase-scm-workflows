@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// lakebase-scm-workflows MCP server.
+// lakebase-app-dev-kit MCP server.
 //
 // Stdio MCP server exposing scripts/lakebase + scripts/github operations
 // as MCP tools. Same canonical implementation as the CLI bins and the
@@ -8,7 +8,7 @@
 //
 // Wired into the substrate's `.mcp.json`. Claude Desktop, OpenAI Codex,
 // and Cursor (when MCP is preferred over the skill plugin) drive
-// lakebase-scm-workflows through this server.
+// lakebase-app-dev-kit through this server.
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -21,8 +21,8 @@ import { TOOLS, findTool } from "./tools.js";
 export async function createServer(): Promise<Server> {
   const server = new Server(
     {
-      name: "lakebase-scm-workflows",
-      version: "0.1.0-alpha.2",
+      name: "lakebase-app-dev-kit",
+      version: "0.2.0-alpha.0",
     },
     {
       capabilities: {
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   // Server runs until stdio closes; no further output to stdout (it's the
   // MCP transport). Diagnostic logging must go to stderr.
   process.stderr.write(
-    `lakebase-scm-workflows MCP server ready (${TOOLS.length} tools)\n`
+    `lakebase-app-dev-kit MCP server ready (${TOOLS.length} tools)\n`
   );
 }
 

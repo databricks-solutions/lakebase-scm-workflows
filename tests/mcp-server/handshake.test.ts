@@ -103,7 +103,7 @@ describe("MCP server stdio handshake", () => {
       clientInfo: { name: "vitest-handshake", version: "0.0.0" },
     });
     expect(initResp.result).toMatchObject({
-      serverInfo: { name: "lakebase-scm-workflows" },
+      serverInfo: { name: "lakebase-app-dev-kit" },
     });
     client.notify("notifications/initialized", {});
 

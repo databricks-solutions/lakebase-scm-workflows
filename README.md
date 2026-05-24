@@ -1,12 +1,21 @@
-# lakebase-scm-workflows
+# lakebase-app-dev-kit
 
-Opinionated git-Lakebase branch-pairing workflows. The shared executable surface that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and coding agents — Claude Code (terminal), Claude Desktop, OpenAI Foundry, Cursor, and Databricks Genie Code — all consume. One canonical implementation, multiple presentation layers.
+Lakebase-backed application development kit. The shared foundation that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and coding agents — Claude Code (terminal), Claude Desktop, OpenAI Foundry, Cursor, and Databricks Genie Code — all consume. One canonical implementation; multiple presentation layers and workflow-domain skills.
+
+**Workflow domains** (one skill each, hosted under `skills/`):
+- **`lakebase-scm-workflows`** — paired-branch source control, schema diff, PR flow, runner setup. (Today.)
+- **`lakebase-tdd-workflows`** — test-driven development against paired branches. (Coming — FEIP-7066.)
+- Future domains include deploying to Databricks Apps and beyond.
+
+This is NOT [`@databricks/sdk`](https://www.npmjs.com/package/@databricks/sdk) (REST client) and the "app dev" framing is generic: it covers apps deployed to Databricks Apps, services, libraries, and any other software that uses Lakebase.
 
 ## What this is
 
 - **`scripts/`** — Node/TypeScript modules that implement the operations: GitHub auth + repo + runner + secrets, Lakebase get-connection + branch lifecycle + schema-diff + create-project + scaffold, git wrappers, and shared utilities. Each has CLI and module entry points.
-- **`agents/lakebase-scm-workflows/SKILL.md`** — Agent surface. A Claude Code agent reads this and drives the same scripts the extension does.
-- **`templates/`** — Project templates the substrate ships into newly-bootstrapped Lakebase-paired projects.
+- **`skills/<domain>/SKILL.md`** — Per-workflow-domain agent surface. A coding agent reads this and drives the same scripts the extension does.
+- **`apps/mcp-server/`** — Single MCP server exposing every skill's tools to MCP-capable agents (Claude Desktop, OpenAI Codex, Cursor-via-MCP).
+- **`tools/openai-foundry/`** — Pre-rendered OpenAI Foundry / Codex tool spec covering the same tool surface.
+- **`templates/`** — Project templates the kit ships into newly-bootstrapped Lakebase-paired projects.
 - **`tests/`** — Vitest BDD tests. Live Lakebase paths skip cleanly when `LAKEBASE_TEST_*` env vars aren't set.
 
 ## Single-seam credential handoff
@@ -23,8 +32,8 @@ Drift across call sites is what produced the gh-token / VS Code session / PAT in
 For agent use (running `node scripts/lakebase/<verb>.js` directly):
 
 ```bash
-git clone https://github.com/databricks-solutions/lakebase-scm-workflows
-cd lakebase-scm-workflows
+git clone https://github.com/databricks-solutions/lakebase-app-dev-kit
+cd lakebase-app-dev-kit
 npm install   # prepare script builds dist/
 ```
 
@@ -33,8 +42,8 @@ For a JS/TS host (extension, Node service) that imports substrate functions, dep
 ```jsonc
 // host package.json
 "dependencies": {
-  "@databricks-solutions/lakebase-scm-workflow-scripts":
-    "github:databricks-solutions/lakebase-scm-workflows#<commit-sha-or-tag>"
+  "@databricks-solutions/lakebase-app-dev-kit":
+    "github:databricks-solutions/lakebase-app-dev-kit#<commit-sha-or-tag>"
 }
 ```
 
@@ -46,7 +55,7 @@ Pin to a sha for reproducibility. `prepare` builds `dist/` on install.
 
 ```bash
 # Auto-detect installed agents, prompt to pick
-bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/lakebase-scm-workflows/main/install.sh)
+bash <(curl -sL https://raw.githubusercontent.com/databricks-solutions/lakebase-app-dev-kit/main/install.sh)
 
 # Specific targets
 ./install.sh --tools claude,cursor
@@ -66,12 +75,12 @@ The MCP server and the Foundry tool-spec generator are two presentations of one 
 ## Imports
 
 ```ts
-import { resolveGitHubToken } from "@databricks-solutions/lakebase-scm-workflow-scripts/github";
-import { getConnection, createBranch, deleteBranch } from "@databricks-solutions/lakebase-scm-workflow-scripts/lakebase";
-import { commitAndPush } from "@databricks-solutions/lakebase-scm-workflow-scripts/git";
+import { resolveGitHubToken } from "@databricks-solutions/lakebase-app-dev-kit/github";
+import { getConnection, createBranch, deleteBranch } from "@databricks-solutions/lakebase-app-dev-kit/lakebase";
+import { commitAndPush } from "@databricks-solutions/lakebase-app-dev-kit/git";
 ```
 
-The root barrel `@databricks-solutions/lakebase-scm-workflow-scripts` re-exports everything; sub-paths (`/github`, `/lakebase`, `/git`, `/util`) and individual modules (`/lakebase/branch-create`, etc.) are also exposed via the `exports` map.
+The root barrel `@databricks-solutions/lakebase-app-dev-kit` re-exports everything; sub-paths (`/github`, `/lakebase`, `/git`, `/util`) and individual modules (`/lakebase/branch-create`, etc.) are also exposed via the `exports` map.
 
 ## CLIs
 

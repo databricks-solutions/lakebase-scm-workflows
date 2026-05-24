@@ -1,9 +1,9 @@
 name: Release tag verify
 
-# Tag-driven build/typecheck/test for lakebase-scm-workflow-scripts.
+# Tag-driven build/typecheck/test for lakebase-app-dev-kit.
 #
 # v0 consumers depend on the substrate via a git URL in package.json:
-#   "github:databricks-solutions/lakebase-scm-workflows#<tag-or-sha>"
+#   "github:databricks-solutions/lakebase-app-dev-kit#<tag-or-sha>"
 #
 # This workflow exists so each release tag has a green build run attached,
 # so consumers can pin against a verified sha. There is no npm publish step.
