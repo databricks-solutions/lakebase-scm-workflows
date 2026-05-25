@@ -272,8 +272,11 @@ if [ -n "$STAGING_ALIAS" ] && [ "$BRANCH" = "$STAGING_ALIAS" ]; then
 fi
 
 # --- Feature branch: create Lakebase branch from the configured base ---
-# Sanitize git branch name for Lakebase branch ID
-LAKEBASE_BRANCH="$("$SCRIPT_DIR/sanitize-branch-name.sh" "$BRANCH")"
+# Sanitize git branch name for Lakebase branch ID.
+# sanitize-branch-name.sh lives at <workTree>/scripts/; the installed hook
+# at .git/hooks/post-checkout can't use $0-relative paths because git
+# invokes it from outside the scripts/ directory.
+LAKEBASE_BRANCH="$("$WORK_TREE/scripts/sanitize-branch-name.sh" "$BRANCH")"
 BRANCH_PATH="${PROJ_PATH}/branches/${LAKEBASE_BRANCH}"
 
 # Resolve the parent (source) Lakebase branch. Precedence:
