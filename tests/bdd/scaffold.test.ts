@@ -167,6 +167,30 @@ describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
     expect(prYml).toMatch(/hashFiles\('pom\.xml'\) != ''/);
   });
 
+  it("scaffolded pr.yml's Install Flyway step short-circuits when flyway is on PATH", async () => {
+    // Prevents a regression where the step unconditionally curl'd from
+    // repo1.maven.org. Internal self-hosted runners often have flyway
+    // already on PATH via brew/apt; the kit must use it before reaching
+    // out to the network.
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(prYml).toMatch(/command -v flyway >\/dev\/null 2>&1/);
+    expect(prYml).toMatch(/skipping download/);
+  });
+
+  it("scaffolded pr.yml honors FLYWAY_DOWNLOAD_BASE_URL via vars.* and env default", async () => {
+    // For runners behind a Maven-proxy mirror (e.g. internal proxies
+    // that block repo1.maven.org). The vars.X reference wires the GH
+    // Actions repo Variable into the step's env; the bash fallback
+    // keeps repo1.maven.org as the default when the var is unset.
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(prYml).toMatch(/FLYWAY_DOWNLOAD_BASE_URL:\s*\$\{\{\s*vars\.FLYWAY_DOWNLOAD_BASE_URL\s*\}\}/);
+    expect(prYml).toMatch(/FLYWAY_BASE="\$\{FLYWAY_DOWNLOAD_BASE_URL:-https:\/\/repo1\.maven\.org\/maven2\}"/);
+  });
+
   it("falls back to 'unknown' when templatesDir points at a tree without a package.json", async () => {
     // Build a minimal fixture: tmpRoot has only `templates/project/common/.github/workflows/`,
     // no package.json at tmpRoot. kitVersion() resolves via path.dirname twice,

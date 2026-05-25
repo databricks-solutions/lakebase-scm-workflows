@@ -305,14 +305,32 @@ jobs:
       # migrate runner spawns the standalone `flyway` binary; non-Java
       # projects don't need it. Runtime-gated on pom.xml so the YAML is
       # one shape for every language.
+      #
+      # Resolution order:
+      #   1. `flyway` already on PATH (self-hosted runner with brew /
+      #      apt install): use it, skip download.
+      #   2. $FLYWAY_DOWNLOAD_BASE_URL env override (runners behind a
+      #      Maven-proxy mirror that block repo1.maven.org). Wire via
+      #      repo Variables → vars.FLYWAY_DOWNLOAD_BASE_URL.
+      #   3. Default https://repo1.maven.org/maven2 for GitHub-hosted
+      #      runners with public internet.
       - name: Install Flyway CLI
         if: steps.lakebase-db.outputs.url != '' && hashFiles('pom.xml') != ''
+        env:
+          FLYWAY_DOWNLOAD_BASE_URL: ${{ vars.FLYWAY_DOWNLOAD_BASE_URL }}
         run: |
+          if command -v flyway >/dev/null 2>&1; then
+            echo "Flyway already on PATH ($(command -v flyway)); skipping download."
+            flyway --version 2>&1 | head -1 || true
+            exit 0
+          fi
           FLYWAY_VERSION=10.20.1
+          FLYWAY_BASE="${FLYWAY_DOWNLOAD_BASE_URL:-https://repo1.maven.org/maven2}"
           DEST="$RUNNER_TEMP/flyway"
           mkdir -p "$DEST"
+          echo "Downloading Flyway $FLYWAY_VERSION from $FLYWAY_BASE ..."
           curl --fail --silent --location \
-            "https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip" \
+            "$FLYWAY_BASE/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip" \
             -o "$DEST/flyway.zip"
           unzip -q "$DEST/flyway.zip" -d "$DEST"
           rm -f "$DEST/flyway.zip"
