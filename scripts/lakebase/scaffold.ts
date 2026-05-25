@@ -268,16 +268,37 @@ export async function deployGitignore(
 }
 
 /**
- * Patch pr.yml and merge.yml for self-hosted runners. Templates ship with
- * github-hosted config (actions/setup-java + online Maven); for self-hosted
- * we swap in local JDK detection and add `-o` (offline) to mvnw.
+ * Patch the deployed workflows for the chosen runner type.
  *
- * No-op for github-hosted (the templates already work).
+ * Templates ship with `runs-on: self-hosted` + `actions/setup-java@v4`. This
+ * is a historical default: most workspaces today register a self-hosted
+ * runner alongside the project, so the templates match that path out of the
+ * box (no patch needed - it just falls through and works).
+ *
+ * For each non-default mode, swap the bits that need swapping:
+ *   - github-hosted: replace `runs-on: self-hosted` -> `runs-on: ubuntu-latest`
+ *     across all .github/workflows/*.yml. setup-java already targets the
+ *     online Maven on github-hosted runners, so nothing else changes.
+ *   - self-hosted: replace the actions/setup-java block with a local-JDK
+ *     detection step (the self-hosted runner pre-provisions JDK + a Maven
+ *     mirror, so we don't want the online setup-java step).
  */
 export async function patchWorkflowsForRunnerType(targetDir: string, runnerType: RunnerType): Promise<void> {
-  if (runnerType === "github-hosted") return;
-
   const workflowDir = path.join(targetDir, ".github", "workflows");
+
+  if (runnerType === "github-hosted") {
+    for (const file of fs.existsSync(workflowDir) ? fs.readdirSync(workflowDir) : []) {
+      if (!file.endsWith(".yml") && !file.endsWith(".yaml")) continue;
+      const filePath = path.join(workflowDir, file);
+      let content = fs.readFileSync(filePath, "utf-8");
+      content = content.replace(/runs-on: self-hosted/g, "runs-on: ubuntu-latest");
+      fs.writeFileSync(filePath, content);
+    }
+    return;
+  }
+
+  // self-hosted: keep `runs-on: self-hosted` (template default) and swap in
+  // local-JDK detection in place of actions/setup-java.
   const localJdkStep = [
     "- name: Set up JDK (local)",
     "        run: |",
