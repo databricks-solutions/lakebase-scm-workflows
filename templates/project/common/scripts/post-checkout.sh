@@ -39,7 +39,7 @@ fi
 # on what's in the project .env. Otherwise a user who sourced an activation
 # script earlier in the shell would leak LAKEBASE_PROJECT_ID into every
 # git checkout in unrelated repos and create spurious branches.
-unset LAKEBASE_PROJECT_ID LAKEBASE_TRUNK_BRANCH \
+unset LAKEBASE_PROJECT_ID \
       LAKEBASE_BASE_BRANCH LAKEBASE_HOST LAKEBASE_BRANCH_ID \
       DATABRICKS_CONFIG_PROFILE DATABRICKS_HOST DATABASE_URL \
       DB_USERNAME DB_PASSWORD
@@ -63,13 +63,16 @@ if [ -z "$PROJ_ID" ]; then
   exit 0
 fi
 
-# Optional: treat a non-standard git branch like main/master – common in
-# shared-monorepo conventions where the trunk is e.g. `team-alpha/project-foo`
-# rather than `main`. This only covers the special case where the Lakebase
-# DEFAULT branch's name (e.g. `production`) differs from the git trunk name.
-# Other long-running tiers (staging, uat, perf, ...) are auto-discovered
-# below from the Lakebase branch list – no per-tier env var needed.
-TRUNK_ALIAS="${LAKEBASE_TRUNK_BRANCH:-}"
+# Auto-discover the git trunk branch from `origin/HEAD` so a non-`main`
+# trunk (e.g. `release/v3` in some shared-monorepo conventions) doesn't
+# need a per-project env var. `git clone` sets refs/remotes/origin/HEAD
+# to the remote's default branch; that's the authoritative answer for
+# "what's this repo's trunk." If origin/HEAD isn't set (rare; some
+# self-hosted CI clones strip it), TRUNK_ALIAS stays empty and the
+# fallback below treats `main`/`master` as trunk. Other long-running
+# tiers (staging, uat, perf, ...) are auto-discovered later from the
+# Lakebase branch list - no per-tier env var needed.
+TRUNK_ALIAS="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
 
 if ! command -v databricks >/dev/null 2>&1; then
   echo "Lakebase: databricks CLI not found. Install and run 'databricks auth login'."
@@ -219,8 +222,10 @@ TIER_BRANCH_NAMES="$(echo "$BRANCH_LIST_JSON" \
 
 # --- Trunk path: git trunk → Lakebase default ---
 # Special-cased because the Lakebase default branch's name (e.g. `production`)
-# may differ from the git trunk name (`main`). LAKEBASE_TRUNK_BRANCH lets the
-# architect declare a non-`main` git trunk (e.g. `release/v3`).
+# may differ from the git trunk name (`main`). TRUNK_ALIAS is auto-derived
+# from `origin/HEAD` above and naturally handles non-`main` trunks like
+# `release/v3`. The `[ -z "$TRUNK_ALIAS" ]` arm is the fallback for clones
+# where origin/HEAD wasn't set.
 if { [ -n "$TRUNK_ALIAS" ] && [ "$BRANCH" = "$TRUNK_ALIAS" ]; } \
    || { [ -z "$TRUNK_ALIAS" ] && { [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; }; }; then
   echo "Lakebase: on $BRANCH, connecting to default Lakebase branch ($DEFAULT_BRANCH_UID)..."
