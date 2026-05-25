@@ -46,19 +46,22 @@ export interface CreateBranchArgs extends BranchLookupOpts {
   /** Poll interval in milliseconds. Default 5_000. */
   pollIntervalMs?: number;
   /**
-   * If true (default), the spec sets `no_expiry: true` so Lakebase never
-   * auto-deletes the branch. Lakebase's API requires one of expire_time /
-   * ttl / no_expiry to be set on every create-branch call; omitting all
-   * three is rejected. We default to `no_expiry: true` because that is the
-   * only expiration policy the canonical Lakebase CLI surface (devhub
-   * `databricks-lakebase` skill) currently documents. Callers that want a
-   * different expiry can pass `noExpiry: false` along with an explicit
-   * spec override path (today substrate does not expose ttl or expire_time
-   * directly; raise the limitation in a substrate ticket when needed).
-   * Orphan-cleanup falls to the post-merge hook + cleanup-cli for
-   * ephemeral feature / ci-pr branches.
+   * If true, the spec sets `no_expiry: true` so Lakebase never auto-deletes
+   * the branch. Lakebase's API requires one of expire_time / ttl /
+   * no_expiry to be set on every create-branch call; omitting all three is
+   * rejected. Default behavior: no_expiry: true if `ttl` is also unset;
+   * if `ttl` is set, that wins and noExpiry must be omitted or false.
+   * Mutually exclusive with `ttl`.
    */
   noExpiry?: boolean;
+  /**
+   * Lakebase-format TTL string ("<seconds>s", e.g. "604800s" = 7 days). When
+   * set, Lakebase auto-deletes the branch after this duration relative to
+   * create_time. Use for finite-lifetime workflow tiers (feature / test /
+   * uat / perf). Mutually exclusive with `noExpiry: true`. Format is the
+   * protobuf Duration JSON encoding — bare seconds with trailing "s".
+   */
+  ttl?: string;
 }
 
 /**
@@ -114,9 +117,20 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
     return existing;
   }
 
-  const noExpiry = args.noExpiry ?? true;
-  const specObj: { source_branch: string; no_expiry?: boolean } = { source_branch: sourceBranchPath };
-  if (noExpiry) {
+  // Expiration policy: ttl wins if set; otherwise default to no_expiry: true.
+  // Refuse the inconsistent combination (ttl + noExpiry: true both set).
+  if (args.ttl && args.noExpiry === true) {
+    throw new LakebaseBranchError(
+      `Cannot set both ttl ("${args.ttl}") and noExpiry: true on the same ` +
+        `branch — they are mutually exclusive. Pass one or the other.`,
+    );
+  }
+  const specObj: { source_branch: string; no_expiry?: boolean; ttl?: string } = {
+    source_branch: sourceBranchPath,
+  };
+  if (args.ttl) {
+    specObj.ttl = args.ttl;
+  } else if (args.noExpiry ?? true) {
     specObj.no_expiry = true;
   }
   const spec = JSON.stringify({ spec: specObj });
