@@ -320,7 +320,7 @@ jobs:
             # baselineOnMigrate + baselineVersion=0 because Lakebase's
             # `public` schema is always non-empty (system catalogs); Flyway 9+
             # otherwise aborts with NON_EMPTY_SCHEMA_WITHOUT_SCHEMA_HISTORY_TABLE.
-            # Long-term: FEIP-7100 will route this through substrate's
+            # Long-term: FEIP-7096 will route this through substrate's
             # lakebase-migrate CLI so the flag handling lives in ONE place.
             ./mvnw -q flyway:migrate -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="$PASS_TRIMMED" -Dflyway.locations=filesystem:src/main/resources/db/migration -Dflyway.baselineOnMigrate=true -Dflyway.baselineVersion=0
             echo "Flyway info (after migrate):"

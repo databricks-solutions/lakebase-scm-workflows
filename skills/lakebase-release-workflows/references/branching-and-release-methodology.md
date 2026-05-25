@@ -161,7 +161,7 @@ Substrate primitives that encode this convention (FEIP-7059 roadmap):
 Companion changes:
 
 - Extension branch picker (VS Code) restricts new-branch creation to the convention's types.
-- Scaffolded project YAMLs (`pr.yml`, `merge.yml`) call substrate primitives instead of inlining `mvn flyway:migrate` / `alembic upgrade head` (FEIP-7100).
+- Scaffolded project YAMLs (`pr.yml`, `merge.yml`) call substrate primitives instead of inlining `mvn flyway:migrate` / `alembic upgrade head` (FEIP-7096).
 - Coding-agent skills reference this document as the source for "how do releases work in a Lakebase-paired project."
 
 ## Open questions
