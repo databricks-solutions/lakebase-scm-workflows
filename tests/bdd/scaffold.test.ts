@@ -2,7 +2,15 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+
+// installHooks calls `git config --local`, which requires an actual git
+// repo (not just a bare `.git/` directory). Tests that exercise installHooks
+// or scaffoldStaticAll (which calls it) must initialise a real repo first.
+function gitInit(dir: string): void {
+  execSync("git init -q", { cwd: dir, stdio: "pipe" });
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {
@@ -309,7 +317,7 @@ describe("installHooks", () => {
 
   it("installs hook files into .git/hooks/ when scripts present", async () => {
     const dir = mkTmp();
-    fs.mkdirSync(path.join(dir, ".git"), { recursive: true });
+    gitInit(dir);
     await deployScripts(dir);
     const summary = await installHooks(dir);
     expect(summary).toMatch(/Installed hooks/);
@@ -321,13 +329,18 @@ describe("installHooks", () => {
 });
 
 describe("patchWorkflowsForRunnerType", () => {
-  it("is a no-op for github-hosted", async () => {
+  // Templates ship with `runs-on: self-hosted` (per FEIP-7121). The patch
+  // function rewrites `runs-on: self-hosted` -> `runs-on: ubuntu-latest`
+  // for github-hosted, and swaps the setup-java block for self-hosted.
+  it("swaps runs-on to ubuntu-latest for github-hosted", async () => {
     const dir = mkTmp();
     await deployWorkflows(dir);
     const before = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(before).toMatch(/runs-on: self-hosted/);
     await patchWorkflowsForRunnerType(dir, "github-hosted");
     const after = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
-    expect(after).toBe(before);
+    expect(after).not.toMatch(/runs-on: self-hosted/);
+    expect(after).toMatch(/runs-on: ubuntu-latest/);
   });
 
   it("swaps setup-java for self-hosted and leaves mvnw calls online", async () => {
@@ -355,7 +368,7 @@ describe("patchWorkflowsForRunnerType", () => {
 describe("scaffoldStaticAll orchestrator", () => {
   it("populates a fresh dir end-to-end (with .git/)", async () => {
     const dir = mkTmp();
-    fs.mkdirSync(path.join(dir, ".git"), { recursive: true });
+    gitInit(dir);
     const reports: string[] = [];
     const result = await scaffoldStaticAll({
       targetDir: dir,

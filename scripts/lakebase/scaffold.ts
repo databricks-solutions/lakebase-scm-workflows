@@ -428,5 +428,15 @@ export async function scaffoldAll(args: ScaffoldAllArgs): Promise<ScaffoldStatic
     report,
   });
 
+  // Spring Initializr's starter zip ships its own .gitignore (generic JVM
+  // entries: target/, *.class, .idea/). Extracting that zip into the
+  // scaffold target overwrites the substrate-curated .gitignore that
+  // scaffoldStaticAll just wrote (which includes .env, .tmp/, etc.).
+  // Without re-applying substrate's .gitignore here, the next `git add`
+  // tracks .env, leaking credentials into history. Re-apply is idempotent;
+  // substrate's java/.gitignore.extra already covers the JVM entries
+  // Initializr would have contributed.
+  await deployGitignore(args.targetDir, language, { templatesDir: args.templatesDir });
+
   return staticResult;
 }

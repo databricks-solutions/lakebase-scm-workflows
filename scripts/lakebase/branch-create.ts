@@ -46,13 +46,17 @@ export interface CreateBranchArgs extends BranchLookupOpts {
   /** Poll interval in milliseconds. Default 5_000. */
   pollIntervalMs?: number;
   /**
-   * If true, the spec sets `no_expiry: true` so Lakebase never auto-deletes
-   * the branch. Use for permanent branches: long-running tiers
-   * (`createLongRunningBranch` passes this) and release-time backups
-   * (`cutBackup` passes this). Default is to omit `no_expiry` from the
-   * spec so Lakebase applies its own default expiry – which is the right
-   * safety net for ephemeral feature / ci-pr branches: if the post-merge
-   * cleanup hook misses them, they still age out on their own.
+   * If true (default), the spec sets `no_expiry: true` so Lakebase never
+   * auto-deletes the branch. Lakebase's API requires one of expire_time /
+   * ttl / no_expiry to be set on every create-branch call; omitting all
+   * three is rejected. We default to `no_expiry: true` because that is the
+   * only expiration policy the canonical Lakebase CLI surface (devhub
+   * `databricks-lakebase` skill) currently documents. Callers that want a
+   * different expiry can pass `noExpiry: false` along with an explicit
+   * spec override path (today substrate does not expose ttl or expire_time
+   * directly; raise the limitation in a substrate ticket when needed).
+   * Orphan-cleanup falls to the post-merge hook + cleanup-cli for
+   * ephemeral feature / ci-pr branches.
    */
   noExpiry?: boolean;
 }
@@ -110,8 +114,9 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
     return existing;
   }
 
+  const noExpiry = args.noExpiry ?? true;
   const specObj: { source_branch: string; no_expiry?: boolean } = { source_branch: sourceBranchPath };
-  if (args.noExpiry) {
+  if (noExpiry) {
     specObj.no_expiry = true;
   }
   const spec = JSON.stringify({ spec: specObj });
