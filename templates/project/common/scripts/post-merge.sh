@@ -7,9 +7,14 @@
 # Install: ./scripts/install-hook.sh
 
 set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve the repo root via git, not via BASH_SOURCE/.., so this works both
+# when invoked directly from scripts/ (as during local testing) and when
+# installed at .git/hooks/post-merge by installHooks (as in production).
+# The BASH_SOURCE/.. heuristic resolves to .git/ in the installed case,
+# which made every helper-script lookup below fail silently.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
+HELPERS_DIR="$REPO_ROOT/scripts"
 
 # Only run on main branch
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -32,9 +37,9 @@ if [ -n "$PR_NUM" ] || [ -n "$FEATURE_BRANCH" ]; then
   ARGS=""
   [ -n "$PR_NUM" ] && ARGS="ci-pr-${PR_NUM}"
   [ -n "$FEATURE_BRANCH" ] && ARGS="${ARGS:+$ARGS }${FEATURE_BRANCH}"
-  if [ -n "$ARGS" ] && [ -x "$SCRIPT_DIR/delete-lakebase-branches.sh" ]; then
+  if [ -n "$ARGS" ] && [ -x "$HELPERS_DIR/delete-lakebase-branches.sh" ]; then
     echo "Post-merge: cleaning up Lakebase branches: $ARGS"
-    "$SCRIPT_DIR/delete-lakebase-branches.sh" $ARGS 2>/dev/null || true
+    "$HELPERS_DIR/delete-lakebase-branches.sh" $ARGS 2>/dev/null || true
   fi
 fi
 

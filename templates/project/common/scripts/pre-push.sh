@@ -7,9 +7,13 @@
 # Install: ./scripts/install-hook.sh
 
 set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve the repo root via git, not via BASH_SOURCE/.., so this works both
+# when invoked directly from scripts/ and when installed at .git/hooks/pre-push
+# by installHooks. The BASH_SOURCE/.. heuristic resolves to .git/ in the
+# installed case, which made set-repo-secrets.sh lookup fail silently.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
+HELPERS_DIR="$REPO_ROOT/scripts"
 
 if [ -f .env ]; then
   set -a
@@ -38,7 +42,7 @@ fi
 
 # Sync secrets to GitHub (DATABRICKS_HOST, DATABRICKS_TOKEN, LAKEBASE_PROJECT_ID)
 if [ -n "${DATABRICKS_HOST:-}" ] && [ -n "${LAKEBASE_PROJECT_ID:-}" ] && [ -n "${DATABRICKS_TOKEN:-}" ]; then
-  if "$SCRIPT_DIR/set-repo-secrets.sh" 2>/dev/null; then
+  if "$HELPERS_DIR/set-repo-secrets.sh" 2>/dev/null; then
     echo "Pre-push: repository secrets synced."
   fi
   # If set-repo-secrets fails (e.g. no gh), push continues anyway
