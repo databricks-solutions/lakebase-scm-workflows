@@ -158,6 +158,32 @@ describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
     expect(prYml).not.toMatch(/npx knex migrate:latest/);
   });
 
+  it("scaffolded pr.yml's migrate step passes auth from secrets with DATABRICKS_AUTH_TYPE=pat", async () => {
+    // Regression guard: the substrate's lakebase-migrate CLI spawns
+    // `databricks postgres list-endpoints` under the hood. On Databricks
+    // CLI v1+ that call fails with "stored credentials from older CLI
+    // versions are no longer used" unless DATABRICKS_AUTH_TYPE=pat is
+    // set in the step env. Pulling DATABRICKS_HOST from `env.X` (which
+    // is empty unless a prior step echoed into $GITHUB_ENV) is the trap
+    // we want to prevent regressing into.
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    // Extract the Run migrations (CI branch) step's env block via a
+    // narrow regex - other steps have their own env blocks we don't
+    // want to false-match against.
+    const migrateBlock = prYml.match(
+      /- name: Run migrations \(CI branch\)[\s\S]*?(?=\n\s*- name:|\Z)/,
+    );
+    expect(migrateBlock, "Run migrations (CI branch) step not found").toBeTruthy();
+    const block = migrateBlock![0];
+    expect(block).toMatch(/DATABRICKS_HOST:\s*\$\{\{\s*secrets\.DATABRICKS_HOST\s*\}\}/);
+    expect(block).toMatch(/DATABRICKS_TOKEN:\s*\$\{\{\s*secrets\.DATABRICKS_TOKEN\s*\}\}/);
+    expect(block).toMatch(/DATABRICKS_AUTH_TYPE:\s*pat/);
+    // The trap: env.DATABRICKS_HOST (empty unless someone echoed it).
+    expect(block).not.toMatch(/DATABRICKS_HOST:\s*\$\{\{\s*env\.DATABRICKS_HOST\s*\}\}/);
+  });
+
   it("scaffolded pr.yml includes the Flyway CLI install step gated on pom.xml", async () => {
     const dir = mkTmp();
     await deployWorkflows(dir);

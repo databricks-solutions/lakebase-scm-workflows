@@ -340,7 +340,15 @@ jobs:
         id: migrate-ci
         if: steps.lakebase-db.outputs.url != ''
         env:
-          DATABRICKS_HOST: ${{ env.DATABRICKS_HOST }}
+          # Pull auth from secrets directly. The substrate's lakebase-migrate
+          # CLI spawns `databricks postgres list-endpoints` under the hood,
+          # which on Databricks CLI v1+ refuses to read the pre-v1 ~/.databricks/
+          # credential cache and won't fall back to DATABRICKS_TOKEN unless
+          # DATABRICKS_AUTH_TYPE=pat pins it. Same pattern as the other auth-
+          # requiring steps in this workflow ("Run E2E tests", "Schema diff").
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
         run: |
           if [ -z "$LAKEBASE_BRANCH_NAME" ]; then
