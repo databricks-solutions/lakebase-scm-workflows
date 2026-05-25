@@ -21,6 +21,10 @@ This document records the convention and the release flow. Future substrate prim
 
 ### Branch convention
 
+A project's branches form a **directed chain of long-running branches**, ending in `prod`. Each working-branch type targets a specific long-running branch in that chain - the architect decides which. Multiple working-branch types can target the same tier, or different tiers; both are valid.
+
+Two-tier (default for most projects - all working types target `staging`):
+
 ```
 prod                                     (only updated by a release)
  │
@@ -31,46 +35,70 @@ staging                                  (next release accumulates here)
 {feature, test, uat, perf}               (working branches off staging)
 ```
 
+Three-tier example (architect splits early-stage work onto `dev`, later-stage validation onto `staging`):
+
+```
+prod              (only updated by a release from staging)
+ │
+ ▼
+staging           (only updated by a release from dev; test/perf/uat work happens here)
+ │       ▲
+ │       └─── {test, uat, perf}          (validation branches off staging)
+ ▼
+dev               (next release accumulates here; feature work happens here)
+ │
+ ▼
+{feature}                                (feature branches off dev)
+```
+
+Any chain length is supported (`dev → staging → preprod → prod`, etc.). The mapping from working-branch type to target tier is **per-project configuration**: in the three-tier example above, an architect chose `feature/*` → `dev` (early integration) while `test/*` / `uat/*` / `perf/*` → `staging` (validation against the pre-release surface). A different architect could choose all four types → `dev`, or all four → `staging`. The substrate stores this mapping as project metadata; agents and the extension read it instead of assuming.
+
+Each adjacent pair `(from, to)` of long-running branches is promoted by the **same release flow** described below; the substrate's release primitive is parameterized over the from/to pair, not hardcoded to `staging → prod`.
+
 Four points to commit to:
 
 1. **`prod` is updated only by a release.** No PRs from working branches merge directly into `prod`. The only writer is the release flow described below.
-2. **`staging` is the integration branch.** Working branches merge here. Continuous - there is always exactly one `staging` branch and it always points at "the next release."
-3. **Working branches branch off `staging`, not `prod`.** Their Lakebase branches are paired children of staging's Lakebase branch.
-4. **Working branches are typed.** `feature/<n>`, `test/<n>`, `uat/<n>`, `perf/<n>`. The type drives expectations about which CI workflows run and what kind of approval is required to merge to `staging`.
+2. **Every working-branch type has an explicit target tier**, set per project. The substrate's branch-creation primitive reads the per-type mapping; the extension's branch picker drives off the same metadata.
+3. **A working branch always branches off its target tier.** Its Lakebase branch is a paired child of the target tier's Lakebase branch, and the corresponding PR's base is that target tier.
+4. **Working branches are typed.** `feature/<n>`, `test/<n>`, `uat/<n>`, `perf/<n>`. The type drives both the target-tier mapping and the CI / approval policy.
 
 ### Working-branch types
 
-| Type | Owner | Typical content | Merge target |
+| Type | Owner | Typical content | Default merge target |
 |---|---|---|---|
-| `feature/*` | Developer | New functionality or schema change | `staging` |
-| `test/*` | QA | Regression scenarios, e2e harness updates | `staging` |
-| `uat/*` | Product / UAT | Behavior verification against business scenarios | `staging` |
-| `perf/*` | Perf engineer | Load + latency probes | `staging` (results only; no production code lands from `perf/*`) |
+| `feature/*` | Developer | New functionality or schema change | integration tier (lowest long-running) |
+| `test/*` | QA | Regression scenarios, e2e harness updates | integration tier (lowest long-running) |
+| `uat/*` | Product / UAT | Behavior verification against business scenarios | integration tier (lowest long-running) |
+| `perf/*` | Perf engineer | Load + latency probes | integration tier (results only; no production code lands from `perf/*`) |
 
-Each type pairs to its own Lakebase branch via the substrate's `createBranch`. Schema changes live on the type's Lakebase branch until the PR merges to `staging`.
+The "Default merge target" column is what the substrate ships when a project doesn't override it - in a two-tier chain that resolves to `staging`; in a three-tier chain it resolves to `dev`. The architect can remap any type to any long-running branch via the project's substrate metadata (e.g. `test/*` → `staging` while `feature/*` → `dev`, as in the three-tier example diagram).
+
+Each type pairs to its own Lakebase branch via the substrate's `createBranch`. Schema changes live on the type's Lakebase branch until the PR merges to the type's configured target.
 
 ### Release-sprint flow
 
-A release proceeds in four ordered phases. Each is intended to be a substrate primitive; the orchestrator composes them with explicit gates.
+A release promotes one long-running branch (the **`from` tier**) into the next one above it (the **`to` tier**). In a two-tier chain there is one release: `from=staging, to=prod`. In a three-tier chain there are two adjacent releases: `from=dev, to=staging` and `from=staging, to=prod`. The shape of each release is identical; only the from/to labels change.
 
-#### Phase 1: Cut RC from prod
+A release proceeds in four ordered phases. Each is intended to be a substrate primitive; the orchestrator composes them with explicit gates. The descriptions below use `from` / `to` placeholders so the same flow applies at every tier boundary.
 
-Branch the release candidate from *current* prod (git + Lakebase), NOT from staging.
+#### Phase 1: Cut RC from `to`
+
+Branch the release candidate from *current* `to` (git + Lakebase), NOT from `from`.
 
 ```
-git fetch && git switch prod
+git fetch && git switch <to>
 git switch -c rc/<release-id>
-# substrate creates Lakebase branch paired to rc/<release-id> off prod's Lakebase
+# substrate creates Lakebase branch paired to rc/<release-id> off <to>'s Lakebase
 ```
 
-Then merge staging into the RC. This is where the "things settling on staging" get included or held back:
+Then merge `from` into the RC. This is where the "things settling on `from`" get included or held back:
 
 ```
-git merge --no-ff staging
+git merge --no-ff <from>
 # resolve conflicts; remove any commit that should not ship
 ```
 
-**Why off prod and not off staging?** Cutting from prod locks the release surface. The RC starts from a known-shipped state and adds *only* the changes the release manager actively merges in. Cutting from staging would inherit whatever happens to be on staging, including in-progress work that did not get explicit release sign-off.
+**Why off `to` and not off `from`?** Cutting from `to` locks the release surface. The RC starts from a known-shipped state (whatever is currently live one tier up) and adds *only* the changes the release manager actively merges in. Cutting from `from` would inherit whatever happens to be on `from`, including in-progress work that did not get explicit release sign-off.
 
 #### Phase 2: Regression test the RC
 
@@ -83,89 +111,92 @@ lakebase-migrate apply --instance <id> --branch rc/<release-id>
 ./mvnw test              # or uv run pytest, or npx vitest, ...
 ```
 
-This is the rehearsal. The RC's Lakebase branch is created from prod's Lakebase, so it carries production's data and the test exercises the migration + behavior against that real shape. The substrate's `applyMigrations` is where Lakebase-specific compatibility (e.g. Flyway's `baselineOnMigrate` flag) lives, in one place.
+This is the rehearsal. The RC's Lakebase branch is created from `to`'s Lakebase, so it carries `to`'s current data and the test exercises the migration + behavior against that real shape. The substrate's `applyMigrations` is where Lakebase-specific compatibility (e.g. Flyway's `baselineOnMigrate` flag) lives, in one place.
 
-#### Phase 3: Cut prod-backup
+#### Phase 3: Cut backup of `to`
 
-Before touching prod, snapshot it.
-
-```
-# substrate primitive
-lakebase-cut-backup --instance <id> --branch prod --tag prod-backup-<release-id>
-git tag prod-backup-<release-id> prod
-git push origin prod-backup-<release-id>
-```
-
-**Why a separate backup?** Rollback should be a one-step revert, not a recovery exercise. Cutting the backup *before* the migrate-prod step means the worst-case rollback is `git switch prod && git reset --hard prod-backup-<release-id>` + repoint app config to the snapshot Lakebase branch. Without this step, rolling back means hand-reconstructing prod from the RC + prior tags.
-
-#### Phase 4: Migrate prod
-
-Promote the RC into prod.
+Before touching `to`, snapshot it.
 
 ```
 # substrate primitive
-lakebase-migrate apply --instance <id> --branch prod
-git switch prod
+lakebase-cut-backup --instance <id> --branch <to> --tag <to>-backup-<release-id>
+git tag <to>-backup-<release-id> <to>
+git push origin <to>-backup-<release-id>
+```
+
+**Why a separate backup?** Rollback should be a one-step revert, not a recovery exercise. Cutting the backup *before* the migrate step means the worst-case rollback is `git switch <to> && git reset --hard <to>-backup-<release-id>` + repoint app config (or downstream tier metadata) at the snapshot Lakebase branch. Without this step, rolling back means hand-reconstructing `to` from the RC + prior tags. The backup is cut on every release, at every tier - `staging-backup-<id>` matters less than `prod-backup-<id>` but the same primitive runs for both.
+
+#### Phase 4: Migrate `to`
+
+Promote the RC into `to`.
+
+```
+# substrate primitive
+lakebase-migrate apply --instance <id> --branch <to>
+git switch <to>
 git merge --ff-only rc/<release-id>
-git push origin prod
-# app deploy with the new prod sha
+git push origin <to>
+# app deploy (only when <to> == prod) or downstream propagation otherwise
 ```
 
-The substrate's `applyMigrations` applies the same migrations that already ran on the RC in Phase 2, against the real prod Lakebase. Same primitive, same compatibility flags, same code path - the difference is only the target branch.
+The substrate's `applyMigrations` applies the same migrations that already ran on the RC in Phase 2, against the real `to` Lakebase. Same primitive, same compatibility flags, same code path - the difference is only the target branch. The app-deploy step is `to == prod` specific; intermediate-tier releases (e.g. `dev → staging`) skip the deploy and continue accumulating until the next `to` is promoted.
 
 ### Rollback
 
-If the release misbehaves after Phase 4 completes:
+If a release misbehaves after Phase 4 completes (at any tier):
 
 ```
-git switch prod && git reset --hard prod-backup-<release-id>
-git push --force-with-lease origin prod
-# app: redeploy from prod-backup-<release-id>
-# Lakebase: repoint app config at the backup branch (or restore prod from it)
+git switch <to> && git reset --hard <to>-backup-<release-id>
+git push --force-with-lease origin <to>
+# app (only when <to> == prod): redeploy from <to>-backup-<release-id>
+# Lakebase: repoint downstream config (app for prod, or next-tier release planner) at the backup branch
 ```
 
-Rollback is invasive (it rewrites prod's git history). The convention accepts this cost so that the *common* case (successful release) is simple. If rollback frequency becomes high, the convention should be revisited.
+Rollback is invasive (it rewrites `to`'s git history). The convention accepts this cost so that the *common* case (successful release) is simple. If rollback frequency becomes high, the convention should be revisited. The cost grows with the chain length - rolling back `dev → staging` is cheap because nothing downstream has shipped; rolling back `staging → prod` is the expensive case.
 
 ## Consequences
 
 **Positive:**
-- Coding agents have a single answer for "where does this work happen": "branch off `staging`, named with the right type prefix."
-- Release sequencing is mechanical and reviewable: a check that all four phases ran in order is enough to audit a release.
+- Coding agents have a single answer for "where does this work happen": "branch off your type's target tier (read from project metadata), named with the right type prefix."
+- Release sequencing is mechanical and reviewable at every tier: a check that all four phases ran in order is enough to audit a release.
 - Rollback is a known one-step procedure.
-- The substrate primitives that will encode this convention are small in number and orthogonal - each phase is a single substrate call.
+- The substrate primitives that encode this convention are small in number and orthogonal - each phase is a single substrate call. The same primitives are reused for every adjacent-tier promotion; N-tier doesn't multiply the primitive surface.
 
 **Negative:**
-- Two long-lived integration branches (`prod`, `staging`) instead of one. Adds merge-management overhead.
-- `staging` can drift if not actively curated - merges to staging that the next release doesn't want must be explicitly excluded during Phase 1's `git merge --no-ff staging` step.
-- Rollback is invasive (force-push to prod). Teams uncomfortable with rewriting prod's history will need a different rollback model (e.g. revert-forward via a new release).
+- Multiple long-lived integration branches (minimum `prod` + one integration tier). Adds merge-management overhead. Three- and four-tier chains compound this.
+- The integration tier can drift if not actively curated - merges to it that the next release doesn't want must be explicitly excluded during Phase 1's `git merge --no-ff <from>` step.
+- Rollback is invasive (force-push to the `to` tier). Teams uncomfortable with rewriting history at any tier will need a different rollback model (e.g. revert-forward via a new release).
+- N-tier shops have more release events to operate. The release primitive amortizes this (same substrate call per tier) but operators still gate each promotion.
 
 ## Anti-patterns this rules out
 
-- **Cutting the RC from staging.** Loses the "locked surface" property. Anything on staging at branch-time ships, including half-finished work.
-- **Merging feature/* directly to prod.** Skips the integration phase; production becomes the de facto integration branch.
-- **Running migrations against prod without a backup tag.** Rollback becomes a recovery exercise.
+- **Cutting the RC from `from`.** Loses the "locked surface" property. Anything on `from` at branch-time ships, including half-finished work. Applies at every tier - cutting the staging→prod RC from staging is the canonical mistake, but cutting a dev→staging RC from dev is the same mistake.
+- **Merging working branches directly to a tier above their configured target.** Skips the intervening release(s); upstream tiers become de facto integration branches.
+- **Running migrations against any long-running branch without a backup tag.** Rollback becomes a recovery exercise. The backup primitive runs on every release, not just staging→prod.
 - **Untyped working branches.** Loses the ability to gate CI workflows by type, and loses the ability for an agent to recommend "this should be a `perf/*` branch, not a `feature/*` branch."
-- **Multiple concurrent releases sharing a single `prod`.** Phase 1 assumes one in-flight release at a time. Concurrent releases require either a release-tagged variant of this convention or sequencing.
+- **Multiple concurrent releases sharing a single `to` tier.** Phase 1 assumes one in-flight release at a time per tier. Concurrent releases require either a release-tagged variant of this convention or sequencing - and the constraint is per-tier, so a project mid-promotion of `dev → staging` can still accept new feature merges to `dev`.
+- **Hardcoding `staging` or `prod` in test scenarios.** Tests should be parameterized over their target tier (read from project metadata or scenario context), so the same e2e suite exercises two-tier and N-tier configurations identically. Scenarios that contain `branch: 'main'` or `git checkout staging` literals will silently misbehave when the chain shape changes.
 
 ## Future work
 
-Substrate primitives that encode this convention (FEIP-7059 roadmap):
+Substrate primitives that encode this convention (FEIP-7059 roadmap). Note that none of the release primitives mention specific tier names - they all take `from` / `to` (or just `to` for backup/migrate) so the same primitive serves every adjacent pair:
 
-- `bootstrap-branch-convention` - given a fresh project, creates `staging`, `feature`, `test`, `uat`, `perf` from prod (git + Lakebase) and writes parent-pair metadata. One-time per project.
-- `cutRC({fromProd, releaseId})` - branches the RC off current prod (git + Lakebase).
+- `bootstrap-branch-convention({chain, workingTypeTargets})` - given a fresh project, creates the configured long-running chain (default `[staging, prod]`; an N-tier shop passes e.g. `[dev, staging, prod]`) plus the working-branch types, all from prod (git + Lakebase), and writes parent-pair metadata + the type→target-tier mapping. One-time per project.
+- `cutRC({from, to, releaseId})` - branches the RC off current `to` (git + Lakebase) and merges `from` in.
 - `regressionTest({rc, suite})` - runs the project's full e2e suite against the RC's Lakebase branch.
-- `cutBackup({prod, releaseId})` - snapshots current prod's Lakebase branch + writes a git tag.
-- `migrateProd({rc, releaseId})` - applies migrations against the prod Lakebase branch + fast-forwards git `prod`.
-- `release({releaseId})` - orchestrator. Calls the four phases in order with explicit human-or-policy gates between each.
+- `cutBackup({to, releaseId})` - snapshots current `to`'s Lakebase branch + writes a git tag.
+- `migrate({rc, to, releaseId})` - applies migrations against `to`'s Lakebase branch + fast-forwards git `to`.
+- `release({from, to, releaseId})` - orchestrator. Calls the four phases in order with explicit human-or-policy gates between each. Same primitive for every adjacent-tier promotion; the caller passes the pair.
 
 Companion changes:
 
-- Extension branch picker (VS Code) restricts new-branch creation to the convention's types.
-- Scaffolded project YAMLs (`pr.yml`, `merge.yml`) call substrate primitives instead of inlining `mvn flyway:migrate` / `alembic upgrade head` (FEIP-7096).
+- Extension branch picker (VS Code) restricts new-branch creation to the convention's types and reads the type→target-tier mapping from project metadata.
+- Scaffolded project YAMLs (`pr.yml`, `merge.yml`) call substrate primitives instead of inlining `mvn flyway:migrate` / `alembic upgrade head` (FEIP-7096). `merge.yml`'s `on: push: branches: [...]` list is generated from the project's long-running-branch chain rather than hardcoded.
 - Coding-agent skills reference this document as the source for "how do releases work in a Lakebase-paired project."
+- Integration test scenarios in the extension (and any downstream consumer) parameterize their merge target via scenario context (e.g. `ctx.baseBranch`) so the same scenario file works at any tier.
 
 ## Open questions
 
-- **Hotfix path.** This document does not yet describe a "skip staging, urgent fix to prod" path. The convention currently implies all hotfixes go through the full four-phase release. If that proves too slow, an explicit hotfix variant is needed - probably a `hotfix/*` working-branch type that targets a release-candidate cut directly from prod, skipping the staging merge.
-- **Multi-environment beyond prod + staging.** Some teams want `dev`, `qa`, `preprod` as additional long-lived branches between staging and prod. This document does not encode that; it can be added as a per-project extension without changing the core convention.
-- **Lakebase branch pruning policy.** When `feature/foo` merges to staging, what happens to its Lakebase branch? This document is silent; needs a paired retention policy in the `lakebase-scm-workflows` skill.
+- **Hotfix path.** This document does not yet describe a "skip integration tiers, urgent fix to prod" path. The convention currently implies all hotfixes go through the full four-phase release at every tier. If that proves too slow, an explicit hotfix variant is needed - probably a `hotfix/*` working-branch type that targets a release-candidate cut directly from prod, skipping the intermediate tiers.
+- **Lakebase branch pruning policy.** When `feature/foo` merges to its target tier, what happens to its Lakebase branch? This document is silent; needs a paired retention policy in the `lakebase-scm-workflows` skill.
+- **Per-tier policy gates.** The release flow is uniform across tiers, but the *gates* between phases probably aren't - e.g. an intermediate `dev → staging` release might require only the regression suite to pass, while `staging → prod` additionally requires QA sign-off + an on-call window. This document does not yet describe a per-tier policy schema; the `release` orchestrator's gate handling will need it.
