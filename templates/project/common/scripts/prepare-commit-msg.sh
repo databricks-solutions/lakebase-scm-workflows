@@ -15,7 +15,7 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$REPO_ROOT"
 
-SCHEMA_DIFF="schema-diff.md"
+SCHEMA_DIFF=".tmp/schema-diff.md"
 # Refresh schema diff if we have Lakebase config and the script exists
 if [ -f ".env" ] && [ -f "scripts/prepare-schema-diff.sh" ]; then
   set +e

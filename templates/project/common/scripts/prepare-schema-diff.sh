@@ -63,7 +63,17 @@ BRANCH="${1:-$(git branch --show-current 2>/dev/null)}"
 BRANCH="${BRANCH:-current-branch}"
 # Sanitize for display (e.g. feature/foo -> feature-foo for label)
 BRANCH_LABEL="$(echo "$BRANCH" | tr '/' '-')"
-MD="schema-diff.md"
+# Write to .tmp/ so the file never sits at the working tree root. Two
+# reasons: (1) the file is a single-use buffer between this script and
+# prepare-commit-msg.sh - nothing else reads it locally; (2) keeping it
+# at the root meant `git add .` picked it up, every PR committed a
+# branch-specific snapshot, and crossing branches via `git checkout`
+# aborted with "Your local changes would be overwritten" - blocking the
+# post-checkout hook from firing and breaking the next feature branch's
+# parent resolution. .tmp/ is already in the substrate's .gitignore.base
+# so the file is naturally untracked.
+mkdir -p .tmp
+MD=".tmp/schema-diff.md"
 
 echo "## Schema (Lakebase branch \`${BRANCH_LABEL}\`)" > "$MD"
 echo "" >> "$MD"
