@@ -6,6 +6,7 @@
 // module locates it relative to its own source by walking up looking for
 // the gitignore-base marker file; tests can override with `templatesDir`.
 
+import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -160,6 +161,18 @@ export async function installHooks(targetDir: string): Promise<string> {
     throw new Error(`Not a git repo root: ${targetDir}`);
   }
   fs.mkdirSync(gitHooksDir, { recursive: true });
+
+  // Pin core.hooksPath to this project's .git/hooks. Without this, a globally
+  // configured core.hooksPath (common in monorepo orgs that ship a corporate
+  // pre-commit secret scanner via ~/.databricks/githooks or similar) makes
+  // git skip .git/hooks entirely - our Lakebase hooks would be installed but
+  // never fire. Project-local config takes precedence over global, so this
+  // guarantees the hooks we just copied are the ones git invokes. Mirrors
+  // install-hook.sh for callers who bootstrap manually.
+  cp.execSync("git config --local core.hooksPath .git/hooks", {
+    cwd: targetDir,
+    stdio: "pipe",
+  });
 
   const hookPairs: Array<[string, string]> = [
     ["post-checkout.sh", "post-checkout"],

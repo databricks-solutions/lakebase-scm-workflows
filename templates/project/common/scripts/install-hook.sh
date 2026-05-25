@@ -12,6 +12,14 @@ if [ ! -d "$REPO_ROOT/.git" ]; then
   exit 1
 fi
 
+# Pin core.hooksPath to this project's .git/hooks. Without this, a globally
+# configured core.hooksPath (common in monorepo orgs that ship a corporate
+# pre-commit secret scanner via ~/.databricks/githooks or similar) makes
+# git skip .git/hooks entirely - our Lakebase hooks would be installed but
+# never fire. Project-local config takes precedence over global, so this
+# guarantees the hooks below are the ones git invokes.
+git -C "$REPO_ROOT" config --local core.hooksPath .git/hooks
+
 cp "$SCRIPT_DIR/post-checkout.sh" "$HOOK"
 chmod +x "$HOOK"
 echo "Installed $HOOK (post-checkout). For Lakebase: set LAKEBASE_PROJECT_ID and Databricks auth in .env."
