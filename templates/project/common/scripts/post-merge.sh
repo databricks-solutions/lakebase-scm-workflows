@@ -27,11 +27,27 @@ if [ -f .env ]; then
   set -a; source .env 2>/dev/null || true; set +a
 fi
 
-# Clean up Lakebase branches from the merged PR
-# Extract PR number from the most recent merge commit message (e.g., "... (#21)")
+# Clean up Lakebase branches from the merged PR.
+#
+# PR number comes from the squash commit subject (e.g. "... (#21)"). This is
+# deterministic across gh's default squash format.
+#
+# Feature branch comes from `gh pr view <PR_NUM> --json headRefName`, the
+# authoritative source. The previous implementation grepped the commit body
+# for "from <branch>", which (a) doesn't exist in default gh squash bodies
+# and (b) matched arbitrary "from X" text including content added by our own
+# prepare-commit-msg.sh schema-diff template (e.g. "could not be resolved
+# from Lakebase"). The gh-based lookup is unambiguous; when gh is unavailable
+# or the lookup fails, we cleanly skip feature-branch cleanup rather than
+# guessing.
 PR_NUM="$(git log -1 --pretty=%s | grep -oE '#[0-9]+' | tail -1 | tr -d '#')"
-# Extract feature branch name from the squash commit (e.g., "F16 ... from feature/org-model")
-FEATURE_BRANCH="$(git log -1 --pretty=%b | grep -oE 'from [^ ]+' | head -1 | sed 's/from //' | sed 's/\//-/g' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-63)"
+FEATURE_BRANCH=""
+if [ -n "$PR_NUM" ] && command -v gh >/dev/null 2>&1; then
+  HEAD_REF="$(gh pr view "$PR_NUM" --json headRefName --jq .headRefName 2>/dev/null)" || true
+  if [ -n "$HEAD_REF" ] && [ -x "$HELPERS_DIR/sanitize-branch-name.sh" ]; then
+    FEATURE_BRANCH="$("$HELPERS_DIR/sanitize-branch-name.sh" "$HEAD_REF")"
+  fi
+fi
 
 if [ -n "$PR_NUM" ] || [ -n "$FEATURE_BRANCH" ]; then
   ARGS=""
