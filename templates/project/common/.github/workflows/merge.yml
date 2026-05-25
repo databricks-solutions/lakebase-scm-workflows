@@ -34,7 +34,19 @@ permissions:
 jobs:
   migrate-target:
     runs-on: self-hosted
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    # Skip the initial branch-creation push. github.event.before is the
+    # all-zeros SHA when a ref is being created for the first time (the
+    # scaffold's initial commit being pushed to main; the first cut of
+    # staging via createLongRunningBranch; etc.). On those pushes, the
+    # project tree has only the V1 placeholder migration which is
+    # already present on the Lakebase default branch, so migrate-target
+    # has nothing to apply - and trying to run it (a) wastes a runner
+    # slot for 1-2 minutes per migrate-target invocation that's a no-op,
+    # and (b) the orphaned in-progress run on a fresh project can block
+    # the runner queue for subsequent real promotion merges. Any
+    # real merge to main/staging (PR-merge or direct push) has
+    # before != 0000... and runs normally.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') && github.event.before != '0000000000000000000000000000000000000000'
     steps:
       - uses: actions/checkout@v4
         with:
