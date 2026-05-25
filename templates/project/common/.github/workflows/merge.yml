@@ -147,9 +147,61 @@ jobs:
           fi
           echo "Target branch resolved: $LAKEBASE_BRANCH_NAME (git: $TARGET_GIT_BRANCH)"
 
+      # Install Flyway CLI for Java/Kotlin projects only. The substrate's
+      # migrate runner spawns the standalone `flyway` binary; non-Java
+      # projects don't need it. Runtime-gated on pom.xml so the YAML is
+      # one shape for every language.
+      #
+      # Resolution order (mirrors pr.yml's Install Flyway CLI step):
+      #   1. `flyway` already on PATH (self-hosted runner with brew /
+      #      apt install): use it, skip download.
+      #   2. $FLYWAY_DOWNLOAD_BASE_URL env override (runners behind a
+      #      Maven-proxy mirror that block repo1.maven.org). Wire via
+      #      repo Variables → vars.FLYWAY_DOWNLOAD_BASE_URL.
+      #   3. Default https://repo1.maven.org/maven2 for GitHub-hosted
+      #      runners with public internet.
+      - name: Install Flyway CLI
+        if: hashFiles('pom.xml') != ''
+        env:
+          FLYWAY_DOWNLOAD_BASE_URL: ${{ vars.FLYWAY_DOWNLOAD_BASE_URL }}
+        run: |
+          if command -v flyway >/dev/null 2>&1; then
+            echo "Flyway already on PATH ($(command -v flyway)); skipping download."
+            flyway --version 2>&1 | head -1 || true
+            exit 0
+          fi
+          FLYWAY_VERSION=10.20.1
+          FLYWAY_BASE="${FLYWAY_DOWNLOAD_BASE_URL:-https://repo1.maven.org/maven2}"
+          DEST="$RUNNER_TEMP/flyway"
+          mkdir -p "$DEST"
+          echo "Downloading Flyway $FLYWAY_VERSION from $FLYWAY_BASE ..."
+          curl --fail --silent --location \
+            "$FLYWAY_BASE/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip" \
+            -o "$DEST/flyway.zip"
+          unzip -q "$DEST/flyway.zip" -d "$DEST"
+          rm -f "$DEST/flyway.zip"
+          echo "$DEST/flyway-$FLYWAY_VERSION" >> $GITHUB_PATH
+
+      # Snapshot the production branch before migrating. Cut via the
+      # substrate's lakebase-cut-backup CLI so the snapshot name +
+      # lineage rules stay aligned with the release-sprint flow.
+      #
+      # The substrate primitive doesn't currently take a TTL; the cleanup
+      # step below explicitly deletes on success and preserves on failure.
+      # A catastrophic runner crash between cut-backup and cleanup would
+      # leak the snapshot, where the previous inline call's ttl=86400s
+      # was a backstop - tracked as a follow-up on FEIP-7096.
       - name: Create pre-migration snapshot
         id: snapshot
         env:
+          # Pull auth from secrets directly. The substrate's lakebase-cut-backup
+          # CLI shells out to `databricks postgres create-branch`, which on
+          # Databricks CLI v1+ rejects the pre-v1 credential cache and won't
+          # fall back to DATABRICKS_TOKEN unless DATABRICKS_AUTH_TYPE=pat
+          # pins it. Same pattern as pr.yml's "Run migrations (CI branch)".
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
         run: |
           PROJ_PATH="projects/${LAKEBASE_PROJECT_ID}"
@@ -157,71 +209,76 @@ jobs:
           PR_NUM="$(git log -1 --pretty=%s | grep -oE '#[0-9]+' | head -1 | tr -d '#')" || true
           SNAPSHOT_NAME="pre-migrate-pr-${PR_NUM:-$(date +%s)}"
 
-          # Find default branch as source
+          # Find the default branch (snapshot source). The Lakebase API
+          # marks the production branch with status.default=true; we
+          # snapshot that one, not the merge-target git branch.
           LIST_RAW="$(databricks postgres list-branches "$PROJ_PATH" -o json 2>&1)"
           BRANCHES="$(echo "$LIST_RAW" | jq -c 'if type == "array" then . elif type == "object" then (.branches // .items // []) else [] end' 2>/dev/null)" || BRANCHES="[]"
           DEFAULT_NAME="$(echo "$BRANCHES" | jq -r '.[] | select((.status.default == true) or (.is_default == true)) | .name' 2>/dev/null | head -1)"
 
-          if [ -n "$DEFAULT_NAME" ]; then
-            echo "Creating pre-migration snapshot: $SNAPSHOT_NAME"
-            # Capture stdout+stderr and exit status separately so a failure
-            # here doesn't get masked by a downstream "may have already
-            # expired" message in the cleanup step.
-            if CREATE_OUT="$(databricks postgres create-branch "$PROJ_PATH" "$SNAPSHOT_NAME" \
-                              --json "{\"spec\": {\"source_branch\": \"${DEFAULT_NAME}\", \"ttl\": \"86400s\"}}" 2>&1)"; then
-              echo "$CREATE_OUT"
-              echo "SNAPSHOT_NAME=$SNAPSHOT_NAME" >> $GITHUB_ENV
-              echo "SNAPSHOT_PROJ_PATH=$PROJ_PATH" >> $GITHUB_ENV
-            else
-              echo "$CREATE_OUT"
-              echo "::warning::Failed to create pre-migration snapshot. Proceeding without rollback safety."
-              echo "SNAPSHOT_NAME=" >> $GITHUB_ENV
-            fi
-          else
+          if [ -z "$DEFAULT_NAME" ]; then
             echo "::warning::Could not find default branch for snapshot. Proceeding without rollback safety."
+            echo "SNAPSHOT_NAME=" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          echo "Routing snapshot through substrate's lakebase-cut-backup CLI"
+          echo "  kit version: {{LAKEBASE_KIT_VERSION}}"
+          echo "  instance:    $LAKEBASE_PROJECT_ID"
+          echo "  source:      $DEFAULT_NAME"
+          echo "  backup:      $SNAPSHOT_NAME"
+          if CREATE_OUT="$(npx --yes --package=github:databricks-solutions/lakebase-app-dev-kit#v{{LAKEBASE_KIT_VERSION}} \
+                              lakebase-cut-backup \
+                              --instance "$LAKEBASE_PROJECT_ID" \
+                              --source "$DEFAULT_NAME" \
+                              --name "$SNAPSHOT_NAME" \
+                              --pretty 2>&1)"; then
+            echo "$CREATE_OUT"
+            echo "SNAPSHOT_NAME=$SNAPSHOT_NAME" >> $GITHUB_ENV
+            echo "SNAPSHOT_PROJ_PATH=$PROJ_PATH" >> $GITHUB_ENV
+          else
+            echo "$CREATE_OUT"
+            echo "::warning::Failed to create pre-migration snapshot. Proceeding without rollback safety."
             echo "SNAPSHOT_NAME=" >> $GITHUB_ENV
           fi
 
       - name: Run migrations (target)
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          DB_USERNAME: ${{ env.DB_USERNAME }}
-          DB_PASSWORD: ${{ env.DB_PASSWORD }}
-          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL || secrets.SPRING_DATASOURCE_URL || '' }}
-          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME || secrets.SPRING_DATASOURCE_USERNAME || '' }}
-          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD || secrets.SPRING_DATASOURCE_PASSWORD || '' }}
+          # Substrate's lakebase-migrate CLI handles language detection,
+          # baseline flags, and tool spawning. Auth pulled from secrets
+          # directly (DATABRICKS_AUTH_TYPE=pat required for CLI v1+;
+          # see pr.yml's "Run migrations (CI branch)" for the rationale).
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
         run: |
-          if [ -z "$DATABASE_URL" ] && [ -z "$SPRING_DATASOURCE_URL" ]; then
-            echo "::error::No database credentials available after auth step. This should not happen."
+          if [ -z "$LAKEBASE_BRANCH_NAME" ]; then
+            echo "::error::LAKEBASE_BRANCH_NAME not set; the resolve-credentials step should have populated it."
             exit 1
           fi
-          LANG="${{ steps.detect-lang.outputs.lang }}"
-          echo "Running migrations on target Lakebase '$LAKEBASE_BRANCH_NAME' (git: $GITHUB_REF_NAME, $LANG)..."
-          if [ "$LANG" = "java" ]; then
-            # baselineOnMigrate + baselineVersion=0 because Lakebase's
-            # `public` schema is always non-empty (system catalogs); Flyway 9+
-            # otherwise aborts with NON_EMPTY_SCHEMA_WITHOUT_SCHEMA_HISTORY_TABLE.
-            # Long-term: FEIP-7096 will route this through substrate's
-            # lakebase-migrate CLI so the flag handling lives in ONE place.
-            if ! ./mvnw -q flyway:migrate -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="${SPRING_DATASOURCE_PASSWORD:-}" -Dflyway.baselineOnMigrate=true -Dflyway.baselineVersion=0; then
-              echo "::error::Flyway migrate failed."
-              exit 1
-            fi
-          elif [ "$LANG" = "python" ]; then
-            if ! uv run alembic upgrade head; then
-              echo "::error::Alembic upgrade failed."
-              exit 1
-            fi
-          elif [ "$LANG" = "nodejs" ]; then
-            if ! npx knex migrate:latest; then
-              echo "::error::Knex migrate failed."
-              exit 1
-            fi
-          fi
+          echo "Routing migrations through the substrate's lakebase-migrate CLI"
+          echo "  kit version: {{LAKEBASE_KIT_VERSION}}"
+          echo "  instance:    $LAKEBASE_PROJECT_ID"
+          echo "  branch:      $LAKEBASE_BRANCH_NAME"
+          echo "  git ref:     $GITHUB_REF_NAME"
+          npx --yes --package=github:databricks-solutions/lakebase-app-dev-kit#v{{LAKEBASE_KIT_VERSION}} \
+            lakebase-migrate apply \
+            --instance "$LAKEBASE_PROJECT_ID" \
+            --branch "$LAKEBASE_BRANCH_NAME" \
+            --pretty
+          echo "Migrations completed."
 
       - name: Clean up or preserve snapshot
         if: always()
         env:
+          # Same v1 CLI cache trap as the substrate-routed steps: this
+          # step calls `databricks postgres list-branches` + `delete-branch`,
+          # which on CLI v1+ refuse the pre-v1 credential cache without
+          # DATABRICKS_AUTH_TYPE=pat pinning auth to DATABRICKS_TOKEN.
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AUTH_TYPE: pat
           LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
         run: |
           if [ -z "${SNAPSHOT_NAME}" ]; then

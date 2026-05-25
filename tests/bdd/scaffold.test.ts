@@ -217,6 +217,66 @@ describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
     expect(prYml).toMatch(/FLYWAY_BASE="\$\{FLYWAY_DOWNLOAD_BASE_URL:-https:\/\/repo1\.maven\.org\/maven2\}"/);
   });
 
+  it("scaffolded merge.yml substitutes the kit version and substrate-routes its migrate + snapshot steps", async () => {
+    // FEIP-7096 PR3: same substrate-routing pattern as pr.yml, applied
+    // to merge.yml's migrate-target job. Locks down all four lessons
+    // learned during the ecom + python-devloop integration loop:
+    //   - kit version substitution at scaffold time
+    //   - migrations route through `lakebase-migrate apply`
+    //   - snapshot routes through `lakebase-cut-backup`
+    //   - Flyway-install detects existing binary + supports proxy
+    //   - migrate + snapshot + cleanup pass DATABRICKS_AUTH_TYPE=pat
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const mergeYml = fs.readFileSync(path.join(dir, ".github", "workflows", "merge.yml"), "utf-8");
+    const kitPkg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf-8"),
+    ) as { version: string };
+
+    // Substitution leaves no placeholder behind.
+    expect(mergeYml).not.toContain("{{LAKEBASE_KIT_VERSION}}");
+    expect(mergeYml).toContain(`#v${kitPkg.version}`);
+
+    // Substrate routing for migrations (replaces the language-branched
+    // mvnw/uv-run/npx-knex block).
+    expect(mergeYml).toMatch(/lakebase-migrate apply/);
+    expect(mergeYml).not.toMatch(/\.\/mvnw -q flyway:migrate/);
+    expect(mergeYml).not.toMatch(/uv run alembic upgrade head/);
+    expect(mergeYml).not.toMatch(/npx knex migrate:latest/);
+
+    // Substrate routing for the pre-migration snapshot (cut-backup CLI).
+    expect(mergeYml).toMatch(/lakebase-cut-backup/);
+    expect(mergeYml).toMatch(/--source "\$DEFAULT_NAME"/);
+    expect(mergeYml).toMatch(/--name "\$SNAPSHOT_NAME"/);
+    // The old inline `databricks postgres create-branch ... --json {...}`
+    // invocation MUST be gone from the snapshot step body. (The string
+    // may still appear inside a comment explaining the substrate's
+    // internals - we narrow this to the actual invocation shape.)
+    expect(mergeYml).not.toMatch(/^\s*databricks postgres create-branch\s/m);
+
+    // Flyway-install step has the PATH-detection + base URL override.
+    expect(mergeYml).toMatch(/command -v flyway >\/dev\/null 2>&1/);
+    expect(mergeYml).toMatch(/FLYWAY_DOWNLOAD_BASE_URL:\s*\$\{\{\s*vars\.FLYWAY_DOWNLOAD_BASE_URL\s*\}\}/);
+
+    // Each substrate-routed step (snapshot, migrate, cleanup) must
+    // pass DATABRICKS_AUTH_TYPE=pat alongside the token, or the v1+
+    // databricks CLI hits the credential-cache rejection.
+    const stepNames = [
+      "Create pre-migration snapshot",
+      "Run migrations \\(target\\)",
+      "Clean up or preserve snapshot",
+    ];
+    for (const stepName of stepNames) {
+      const re = new RegExp(`- name: ${stepName}[\\s\\S]*?(?=\\n\\s*- name:|\\Z)`);
+      const m = mergeYml.match(re);
+      expect(m, `${stepName} step not found in merge.yml`).toBeTruthy();
+      const block = m![0];
+      expect(block).toMatch(/DATABRICKS_HOST:\s*\$\{\{\s*secrets\.DATABRICKS_HOST\s*\}\}/);
+      expect(block).toMatch(/DATABRICKS_TOKEN:\s*\$\{\{\s*secrets\.DATABRICKS_TOKEN\s*\}\}/);
+      expect(block).toMatch(/DATABRICKS_AUTH_TYPE:\s*pat/);
+    }
+  });
+
   it("falls back to 'unknown' when templatesDir points at a tree without a package.json", async () => {
     // Build a minimal fixture: tmpRoot has only `templates/project/common/.github/workflows/`,
     // no package.json at tmpRoot. kitVersion() resolves via path.dirname twice,
