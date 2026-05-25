@@ -1,6 +1,6 @@
 {
   "name": "@databricks-solutions/lakebase-app-dev-kit",
-  "version": "0.3.0-alpha.3",
+  "version": "0.3.0-alpha.4",
   "description": "Lakebase-backed application development kit — shared scripts, agent skills (SCM today, TDD next), MCP server, and OpenAI Foundry tool spec. Consumed by lakebase-scm-extension and coding agents (Claude Code, Claude Desktop, OpenAI Codex, Cursor, Databricks Genie Code).",
   "type": "module",
   "private": true,

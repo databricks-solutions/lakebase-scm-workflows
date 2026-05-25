@@ -15,6 +15,8 @@
 // to logger config drift in the consumer's `alembic.ini`.
 
 import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {
   MigrationError,
   type ApplyMigrationsResult,
@@ -29,9 +31,33 @@ interface RunnerCtx {
   dsn: string;
 }
 
+/**
+ * Resolve the `alembic` binary path. uv-managed Python projects install
+ * alembic into a per-project `.venv/bin/alembic`, which is NOT on the
+ * runner's PATH. Spawning bare `alembic` fails with ENOENT in CI even
+ * after `uv sync` succeeded. Prefer the project-local venv when it
+ * exists; fall back to bare `alembic` for projects with a pre-activated
+ * shell venv or a system-wide install.
+ */
+export function resolveAlembicBin(projectDir: string): string {
+  const candidates = [
+    path.join(projectDir, ".venv", "bin", "alembic"),
+    path.join(projectDir, "venv", "bin", "alembic"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // best-effort; keep checking
+    }
+  }
+  return "alembic";
+}
+
 function runAlembic(ctx: RunnerCtx, args: string[]): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn("alembic", args, {
+    const bin = resolveAlembicBin(ctx.projectDir);
+    const child = spawn(bin, args, {
       cwd: ctx.projectDir,
       env: { ...process.env, DATABASE_URL: ctx.dsn },
       stdio: ["ignore", "pipe", "pipe"],
