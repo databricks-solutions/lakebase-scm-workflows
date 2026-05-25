@@ -31,7 +31,15 @@
 
 set -e
 
-SKILL_NAME="lakebase-scm-workflows"
+# Auto-discovered from the kit's skills/ tree at install time. Every
+# directory under skills/ that contains a SKILL.md is treated as a
+# skill and installed to each chosen agent's path. Today that covers
+# the kit-authored workflow skills (lakebase-scm-workflows,
+# lakebase-release-workflows, ...) AND the vendored upstream skills
+# from devhub (databricks-core, databricks-lakebase) - consumers get
+# both layers without thinking about it.
+SKILL_NAMES=()  # populated after REPO_ROOT is resolved below
+PRIMARY_SKILL="lakebase-scm-workflows"  # used for the "checking source" probe
 OWNER="databricks-solutions"
 REPO="lakebase-app-dev-kit"
 
@@ -85,9 +93,9 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-# Source skill tree must be in $REPO_ROOT/skills/lakebase-scm-workflows/.
-# When run via curl|bash we're outside the repo, so detect and clone first.
-if [ -d "skills/$SKILL_NAME" ]; then
+# Source skill tree must be in $REPO_ROOT/skills/. When run via curl|bash
+# we're outside the repo, so detect and clone first.
+if [ -d "skills/$PRIMARY_SKILL" ]; then
   REPO_ROOT="$(pwd)"
 else
   TMPDIR="$(mktemp -d)"
@@ -95,10 +103,37 @@ else
   git clone --depth=1 "https://github.com/$OWNER/$REPO.git" "$TMPDIR/$REPO" > /dev/null 2>&1
   REPO_ROOT="$TMPDIR/$REPO"
 fi
-SKILL_SRC="$REPO_ROOT/skills/$SKILL_NAME"
 
-if [ ! -d "$SKILL_SRC" ]; then
-  echo -e "${RED}Skill source not found at $SKILL_SRC. Aborting.${NC}"
+if [ ! -d "$REPO_ROOT/skills/$PRIMARY_SKILL" ]; then
+  echo -e "${RED}Primary skill not found at $REPO_ROOT/skills/$PRIMARY_SKILL. Aborting.${NC}"
+  exit 1
+fi
+
+# Build the substrate's dist/ via npm install. Skills declare CLI surfaces
+# that consumers may invoke directly (e.g. `node dist/scripts/lakebase/
+# get-connection.js`) - those need dist/ to exist. The kit's `prepare`
+# script runs the build, so a plain `npm install` is sufficient.
+# Idempotent: if dist/ already exists + matches package version, npm
+# skips the rebuild.
+if [ ! -d "$REPO_ROOT/dist" ] || [ ! -d "$REPO_ROOT/node_modules" ]; then
+  echo -e "${BLUE}Installing kit dependencies + building dist/ (this may take a minute)...${NC}"
+  ( cd "$REPO_ROOT" && npm install --silent ) || {
+    echo -e "${RED}npm install failed. Skills will still be copied but CLI surfaces won't work until you 'npm install' manually in $REPO_ROOT.${NC}"
+  }
+fi
+
+# Discover every skill in the tree (any skills/<dir>/SKILL.md). Sorted
+# alphabetically so install order is deterministic. Today this covers
+# both kit-authored workflows (lakebase-scm-workflows, ...) and
+# vendored upstream references (databricks-core, databricks-lakebase).
+while IFS= read -r -d '' skill_md; do
+  skill_dir="$(dirname "$skill_md")"
+  skill_name="$(basename "$skill_dir")"
+  SKILL_NAMES+=("$skill_name")
+done < <(find "$REPO_ROOT/skills" -mindepth 2 -maxdepth 2 -name SKILL.md -print0 | sort -z)
+
+if [ ${#SKILL_NAMES[@]} -eq 0 ]; then
+  echo -e "${RED}No skills found under $REPO_ROOT/skills/. Aborting.${NC}"
   exit 1
 fi
 
@@ -120,20 +155,21 @@ if [ -z "$TOOLS" ]; then
   echo -e "${BLUE}Detected: $TOOLS${NC}"
 fi
 
-# Per-target path (project vs global).
+# Per-target + per-skill destination path (project vs global).
 target_path() {
-  case "$1" in
+  local tool="$1" skill="$2"
+  case "$tool" in
     claude)
-      if [ "$SCOPE" = "global" ]; then echo "$HOME/.claude/skills/$SKILL_NAME"
-      else echo ".claude/skills/$SKILL_NAME"; fi ;;
+      if [ "$SCOPE" = "global" ]; then echo "$HOME/.claude/skills/$skill"
+      else echo ".claude/skills/$skill"; fi ;;
     cursor)
-      if [ "$SCOPE" = "global" ]; then echo "$HOME/.cursor/skills/$SKILL_NAME"
-      else echo ".cursor/skills/$SKILL_NAME"; fi ;;
+      if [ "$SCOPE" = "global" ]; then echo "$HOME/.cursor/skills/$skill"
+      else echo ".cursor/skills/$skill"; fi ;;
     *) echo ""; return 1 ;;
   esac
 }
 
-# Install per target.
+# Install every discovered skill into the given tool's path.
 install_one() {
   local tool="$1"
 
@@ -142,8 +178,7 @@ install_one() {
   # (Claude Desktop's claude_desktop_config.json, Foundry's tool config).
   if [ "$tool" = "claude-desktop" ]; then
     echo -e "${GREEN}  ✓ claude-desktop${NC} – copy the entry from ${BLUE}$REPO_ROOT/.mcp.json${NC} into your claude_desktop_config.json (under \"mcpServers\")."
-    echo -e "    First-time setup: ${BLUE}cd $REPO_ROOT && npm install && npm run build${NC}"
-    echo -e "    Note: @modelcontextprotocol/sdk is an optional peer dep – npm pulls it in during the substrate's dev install (above), so no extra step needed when running the bin from the cloned repo."
+    echo -e "    Substrate already built above; the @modelcontextprotocol/sdk optional peer dep is in place."
     return
   fi
   if [ "$tool" = "openai-foundry" ]; then
@@ -156,18 +191,21 @@ install_one() {
     return
   fi
 
-  local dest
-  dest="$(target_path "$tool")" || { echo -e "${YELLOW}Skipping unknown target: $tool${NC}"; return; }
+  for skill in "${SKILL_NAMES[@]}"; do
+    local skill_src="$REPO_ROOT/skills/$skill"
+    local dest
+    dest="$(target_path "$tool" "$skill")" || { echo -e "${YELLOW}    Skipping unknown target: $tool${NC}"; return; }
 
-  if [ -d "$dest" ] && [ "$FORCE" != "true" ]; then
-    read -p "  $dest exists. Overwrite? [y/N] " confirm
-    [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && return
-  fi
+    if [ -d "$dest" ] && [ "$FORCE" != "true" ]; then
+      read -p "    $dest exists. Overwrite? [y/N] " confirm
+      [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && continue
+    fi
 
-  mkdir -p "$(dirname "$dest")"
-  rm -rf "$dest"
-  cp -R "$SKILL_SRC" "$dest"
-  echo -e "${GREEN}  ✓ $tool → $dest${NC}"
+    mkdir -p "$(dirname "$dest")"
+    rm -rf "$dest"
+    cp -R "$skill_src" "$dest"
+    echo -e "${GREEN}    ✓ $skill → $dest${NC}"
+  done
 }
 
 # Genie upload – uploads the skills/ tree to the user's Databricks workspace.
@@ -183,18 +221,23 @@ install_to_genie() {
     echo -e "${RED}Could not resolve Databricks user. Check the --profile.${NC}"
     return 1
   fi
-  local workspace_path="/Users/$current_user/lakebase-scm-skills/$SKILL_NAME"
-  echo -e "${BLUE}Uploading $SKILL_SRC to workspace path $workspace_path (profile: $DB_PROFILE)${NC}"
-  databricks workspace import-dir --overwrite "$SKILL_SRC" "$workspace_path" --profile "$DB_PROFILE"
-  echo -e "${GREEN}  ✓ Genie Code skill uploaded to $workspace_path${NC}"
+  for skill in "${SKILL_NAMES[@]}"; do
+    local skill_src="$REPO_ROOT/skills/$skill"
+    local workspace_path="/Users/$current_user/lakebase-app-dev-kit-skills/$skill"
+    echo -e "${BLUE}Uploading $skill_src to $workspace_path (profile: $DB_PROFILE)${NC}"
+    databricks workspace import-dir --overwrite "$skill_src" "$workspace_path" --profile "$DB_PROFILE"
+    echo -e "${GREEN}  ✓ $skill → $workspace_path${NC}"
+  done
 }
 
 # ── Main ──────────────────────────────────────────────────────────────
 echo
-echo -e "${BLUE}Installing $SKILL_NAME to: $TOOLS${NC}"
+echo -e "${BLUE}Installing ${#SKILL_NAMES[@]} skill(s) to: $TOOLS${NC}"
+printf '  • %s\n' "${SKILL_NAMES[@]}"
 echo
 IFS=','
 for tool in $TOOLS; do
+  echo -e "${BLUE}→ $tool${NC}"
   install_one "$tool"
 done
 unset IFS

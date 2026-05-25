@@ -1,12 +1,34 @@
 {
   "version": "2",
-  "updated_at": "2026-05-24T22:55:20Z",
+  "updated_at": "2026-05-25T19:38:58Z",
   "skills": {
-    "lakebase-release-workflows": {
+    "databricks-core": {
       "version": "0.1.0",
-      "description": "Opinionated branching + release methodology for Lakebase-paired projects. Use when designing a project's branch layout, cutting a release candidate, promoting to production, rolling back, or asking 'where should this work happen?' Encodes the prod / staging / {feature,test,uat,perf} convention and the cut-RC / regression-test / cut-prod-backup / migrate-prod release flow.",
+      "description": "Databricks CLI operations: auth, profiles, data exploration, and bundles. Contains up-to-date guidelines for Databricks-related CLI tasks.",
       "experimental": false,
-      "updated_at": "2026-05-24T22:54:10Z",
+      "updated_at": "2026-05-25T19:38:01Z",
+      "files": [
+        "SKILL.md",
+        "data-exploration.md",
+        "databricks-cli-auth.md",
+        "databricks-cli-install.md",
+        "declarative-automation-bundles.md"
+      ]
+    },
+    "databricks-lakebase": {
+      "version": "0.1.0",
+      "description": "Manage Lakebase Postgres Autoscaling projects, branches, and endpoints via Databricks CLI. Use when asked to create, configure, or manage Lakebase Postgres databases, projects, branches, computes, or endpoints.",
+      "experimental": false,
+      "updated_at": "2026-05-25T19:38:03Z",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    "lakebase-release-workflows": {
+      "version": "0.2.0",
+      "description": "Opinionated branching + release methodology for Lakebase-paired projects. Use when designing a project's branch layout, cutting a release candidate, promoting between long-running tiers, rolling back, or asking 'where should this work happen?' Encodes the prod / staging / {feature,test,uat,perf} default and the N-tier-capable cut-RC / regression-test / cut-backup / migrate release flow.",
+      "experimental": false,
+      "updated_at": "2026-05-25T16:35:14Z",
       "files": [
         "SKILL.md",
         "references/branching-and-release-methodology.md"
