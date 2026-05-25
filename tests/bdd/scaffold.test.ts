@@ -2,6 +2,9 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import {
   deployGitignore,
   deployVscodeSettings,
@@ -117,6 +120,73 @@ describe("deployScripts + deployWorkflows", () => {
     const workflows = await deployWorkflows(dir);
     expect(workflows).toContain("pr.yml");
     expect(workflows).toContain("merge.yml");
+  });
+});
+
+describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
+  // Kit version pinning happens at scaffold-time so the generated YAML
+  // resolves the substrate via a stable `github:.../#vX.Y.Z` ref. After
+  // copy, no scaffolded file should contain the literal placeholder.
+  it("substitutes {{LAKEBASE_KIT_VERSION}} in scaffolded pr.yml with the kit's package.json version", async () => {
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(prYml).not.toContain("{{LAKEBASE_KIT_VERSION}}");
+    // The kit's own package.json version is what gets pinned.
+    const kitPkg = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "..", "..", "package.json"),
+        "utf-8"
+      )
+    ) as { version: string };
+    expect(prYml).toContain(`#v${kitPkg.version}`);
+  });
+
+  it("scaffolded pr.yml routes migrations through the substrate's lakebase-migrate CLI", async () => {
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    // Substrate routing line, not the old language-branched mvnw/uv/npx-knex shape.
+    expect(prYml).toMatch(/lakebase-migrate apply/);
+    expect(prYml).toMatch(/github:databricks-solutions\/lakebase-app-dev-kit/);
+    expect(prYml).toMatch(/--instance "\$LAKEBASE_PROJECT_ID"/);
+    expect(prYml).toMatch(/--branch "\$LAKEBASE_BRANCH_NAME"/);
+    // The old per-language branches MUST be gone — substrate handles
+    // language detection internally.
+    expect(prYml).not.toMatch(/flyway:migrate/);
+    expect(prYml).not.toMatch(/uv run alembic upgrade head/);
+    expect(prYml).not.toMatch(/npx knex migrate:latest/);
+  });
+
+  it("scaffolded pr.yml includes the Flyway CLI install step gated on pom.xml", async () => {
+    const dir = mkTmp();
+    await deployWorkflows(dir);
+    const prYml = fs.readFileSync(path.join(dir, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(prYml).toMatch(/name: Install Flyway CLI/);
+    // Runtime gate: only install on Java/Kotlin projects (pom.xml present).
+    expect(prYml).toMatch(/hashFiles\('pom\.xml'\) != ''/);
+  });
+
+  it("falls back to 'unknown' when templatesDir points at a tree without a package.json", async () => {
+    // Build a minimal fixture: tmpRoot has only `templates/project/common/.github/workflows/`,
+    // no package.json at tmpRoot. kitVersion() resolves via path.dirname twice,
+    // so the lookup target is tmpRoot/package.json — which is absent.
+    const fixture = mkTmp();
+    const templates = path.join(fixture, "templates", "project");
+    const wfDir = path.join(templates, "common", ".github", "workflows");
+    fs.mkdirSync(wfDir, { recursive: true });
+    // Marker file expected by findTemplatesDir (not consulted when
+    // templatesDir is passed explicitly, but cheap to include).
+    fs.writeFileSync(path.join(templates, "common", ".gitignore.base"), "");
+    fs.writeFileSync(
+      path.join(wfDir, "pr.yml"),
+      "kit: {{LAKEBASE_KIT_VERSION}}\n"
+    );
+
+    const target = mkTmp();
+    await deployWorkflows(target, { templatesDir: templates });
+    const out = fs.readFileSync(path.join(target, ".github", "workflows", "pr.yml"), "utf-8");
+    expect(out).toBe("kit: unknown\n");
   });
 });
 

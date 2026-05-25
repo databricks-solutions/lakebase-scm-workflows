@@ -98,11 +98,55 @@ export async function deployScripts(targetDir: string, opts?: ScaffoldOptions): 
 
 /** Deploy GitHub Actions workflows from common/.github/workflows/. */
 export async function deployWorkflows(targetDir: string, opts?: ScaffoldOptions): Promise<string[]> {
-  return copyDir(
+  const written = copyDir(
     path.join(commonDir(opts), ".github", "workflows"),
     path.join(targetDir, ".github", "workflows"),
     false
   );
+  substituteWorkflowPlaceholders(
+    path.join(targetDir, ".github", "workflows"),
+    opts
+  );
+  return written;
+}
+
+/**
+ * Read the kit's `package.json` version. The kit root sits two levels
+ * above `templates/project`; tests can pass `templatesDir` to override
+ * which kit's package.json is consulted. When the package.json is
+ * missing or malformed the version comes through as the literal string
+ * "unknown" rather than throwing, so a scaffold against a test fixture
+ * tree without a package.json still completes (its YAML will pin to
+ * the literal "unknown" tag, which is fine for hermetic tests).
+ */
+function kitVersion(opts?: ScaffoldOptions): string {
+  try {
+    const kitRoot = path.dirname(path.dirname(templatesRoot(opts)));
+    const raw = fs.readFileSync(path.join(kitRoot, "package.json"), "utf-8");
+    const pkg = JSON.parse(raw) as { version?: unknown };
+    return typeof pkg.version === "string" ? pkg.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * Rewrite scaffolded workflow YAML files for per-project values that
+ * can only be known at scaffold time.
+ *
+ * Today: substitute `{{LAKEBASE_KIT_VERSION}}` with the kit version
+ * that ran the scaffold. Future-proofed for additional placeholders.
+ */
+function substituteWorkflowPlaceholders(workflowDir: string, opts?: ScaffoldOptions): void {
+  if (!fs.existsSync(workflowDir)) return;
+  const version = kitVersion(opts);
+  for (const entry of fs.readdirSync(workflowDir)) {
+    if (!entry.endsWith(".yml") && !entry.endsWith(".yaml")) continue;
+    const filePath = path.join(workflowDir, entry);
+    const before = fs.readFileSync(filePath, "utf-8");
+    const after = before.replace(/\{\{LAKEBASE_KIT_VERSION\}\}/g, version);
+    if (after !== before) fs.writeFileSync(filePath, after);
+  }
 }
 
 /**

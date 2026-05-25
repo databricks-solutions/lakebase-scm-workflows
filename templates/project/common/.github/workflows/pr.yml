@@ -301,40 +301,43 @@ jobs:
           unset PGPASSWORD PGHOST PGPORT PGDATABASE PGUSER PGSSLMODE
           exit 0
 
+      # Install Flyway CLI for Java/Kotlin projects only. The substrate's
+      # migrate runner spawns the standalone `flyway` binary; non-Java
+      # projects don't need it. Runtime-gated on pom.xml so the YAML is
+      # one shape for every language.
+      - name: Install Flyway CLI
+        if: steps.lakebase-db.outputs.url != '' && hashFiles('pom.xml') != ''
+        run: |
+          FLYWAY_VERSION=10.20.1
+          DEST="$RUNNER_TEMP/flyway"
+          mkdir -p "$DEST"
+          curl --fail --silent --location \
+            "https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip" \
+            -o "$DEST/flyway.zip"
+          unzip -q "$DEST/flyway.zip" -d "$DEST"
+          rm -f "$DEST/flyway.zip"
+          echo "$DEST/flyway-$FLYWAY_VERSION" >> $GITHUB_PATH
+
       - name: Run migrations (CI branch)
         id: migrate-ci
         if: steps.lakebase-db.outputs.url != ''
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          DB_USERNAME: ${{ env.DB_USERNAME }}
-          DB_PASSWORD: ${{ env.DB_PASSWORD }}
-          SPRING_DATASOURCE_URL: ${{ env.SPRING_DATASOURCE_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ env.SPRING_DATASOURCE_USERNAME }}
-          SPRING_DATASOURCE_PASSWORD: ${{ env.SPRING_DATASOURCE_PASSWORD }}
+          DATABRICKS_HOST: ${{ env.DATABRICKS_HOST }}
+          LAKEBASE_PROJECT_ID: ${{ secrets.LAKEBASE_PROJECT_ID }}
         run: |
-          LANG="${{ steps.detect-lang.outputs.lang }}"
-          if [ "$LANG" = "java" ]; then
-            echo "Migration files:"; ls -la src/main/resources/db/migration/ || true
-            PASS_TRIMMED="$(printf '%s' "$SPRING_DATASOURCE_PASSWORD" | tr -d '\n')"
-            echo "Running Flyway migrate on CI branch..."
-            # baselineOnMigrate + baselineVersion=0 because Lakebase's
-            # `public` schema is always non-empty (system catalogs); Flyway 9+
-            # otherwise aborts with NON_EMPTY_SCHEMA_WITHOUT_SCHEMA_HISTORY_TABLE.
-            # Long-term: FEIP-7096 will route this through substrate's
-            # lakebase-migrate CLI so the flag handling lives in ONE place.
-            ./mvnw -q flyway:migrate -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="$PASS_TRIMMED" -Dflyway.locations=filesystem:src/main/resources/db/migration -Dflyway.baselineOnMigrate=true -Dflyway.baselineVersion=0
-            echo "Flyway info (after migrate):"
-            ./mvnw -q flyway:info -Dflyway.url="$SPRING_DATASOURCE_URL" -Dflyway.user="${SPRING_DATASOURCE_USERNAME:-}" -Dflyway.password="$PASS_TRIMMED" -Dflyway.locations=filesystem:src/main/resources/db/migration
-          elif [ "$LANG" = "python" ]; then
-            echo "Migration files:"; ls -la alembic/versions/ || true
-            echo "Running Alembic upgrade head on CI branch..."
-            uv run alembic upgrade head
-            echo "Alembic current:"; uv run alembic current || true
-          elif [ "$LANG" = "nodejs" ]; then
-            echo "Migration files:"; ls -la migrations/ || true
-            echo "Running Knex migrate:latest on CI branch..."
-            npx knex migrate:latest
+          if [ -z "$LAKEBASE_BRANCH_NAME" ]; then
+            echo "::error::LAKEBASE_BRANCH_NAME not set; the resolve-credentials step should have populated it."
+            exit 1
           fi
+          echo "Routing migrations through the substrate's lakebase-migrate CLI"
+          echo "  kit version: {{LAKEBASE_KIT_VERSION}}"
+          echo "  instance:    $LAKEBASE_PROJECT_ID"
+          echo "  branch:      $LAKEBASE_BRANCH_NAME"
+          npx --yes --package=github:databricks-solutions/lakebase-app-dev-kit#v{{LAKEBASE_KIT_VERSION}} \
+            lakebase-migrate apply \
+            --instance "$LAKEBASE_PROJECT_ID" \
+            --branch "$LAKEBASE_BRANCH_NAME" \
+            --pretty
           echo "Migrations completed."
 
       - name: Run tests
