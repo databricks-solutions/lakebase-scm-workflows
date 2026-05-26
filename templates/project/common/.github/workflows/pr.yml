@@ -26,19 +26,18 @@ jobs:
 
       - name: Detect project language
         id: detect-lang
+        # Routes through the substrate's lakebase-detect-language CLI so
+        # the kit's marker-file detection (mirrors lakebase-migrate's auto-
+        # detect) is the single source of truth across pr.yml + merge.yml +
+        # the substrate's migrate runners. {{LAKEBASE_KIT_VERSION}} is
+        # substituted at scaffold time to the kit version that produced
+        # this project.
         run: |
-          # Use git ls-files to check tracked marker files (avoids stale files on self-hosted runners)
-          if git ls-files --error-unmatch pom.xml >/dev/null 2>&1; then
-            echo "lang=java" >> $GITHUB_OUTPUT
-          elif git ls-files --error-unmatch pyproject.toml >/dev/null 2>&1 || git ls-files --error-unmatch requirements.txt >/dev/null 2>&1; then
-            echo "lang=python" >> $GITHUB_OUTPUT
-          elif git ls-files --error-unmatch package.json >/dev/null 2>&1; then
-            echo "lang=nodejs" >> $GITHUB_OUTPUT
-          else
-            echo "::error::Cannot detect project language. Expected pom.xml, pyproject.toml, or package.json in repo root."
-            exit 1
-          fi
-          echo "Detected language: $(cat $GITHUB_OUTPUT | grep lang | cut -d= -f2)"
+          LANG="$(npx --yes \
+            --package=github:databricks-solutions/lakebase-app-dev-kit#v{{LAKEBASE_KIT_VERSION}} \
+            lakebase-detect-language)"
+          echo "lang=$LANG" >> $GITHUB_OUTPUT
+          echo "Detected language: $LANG"
 
       - name: Set up JDK
         if: steps.detect-lang.outputs.lang == 'java'
