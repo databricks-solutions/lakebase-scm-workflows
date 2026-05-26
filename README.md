@@ -9,8 +9,8 @@ Lakebase-backed application development kit. The shared foundation that the [`la
 - Future domains include deploying to Databricks Apps and beyond.
 
 **Vendored upstream skills** (also under `skills/`, synced from [`databricks/devhub`](https://github.com/databricks/devhub/tree/main/.agents/skills)):
-- **`databricks-core`** – CLI basics, authentication, profile selection. Parent skill referenced by `databricks-lakebase`.
-- **`databricks-lakebase`** – canonical agent reference for the `databricks postgres` CLI surface (project / branch / endpoint / database resource shapes, name formats, "never delete the production branch" rule, discovery via `-h`).
+- **[`databricks-core`](https://github.com/databricks/devhub/blob/main/.agents/skills/databricks-core/SKILL.md)** – CLI basics, authentication, profile selection. Parent skill referenced by `databricks-lakebase`.
+- **[`databricks-lakebase`](https://github.com/databricks/devhub/blob/main/.agents/skills/databricks-lakebase/SKILL.md)** – canonical agent reference for the `databricks postgres` CLI surface (project / branch / endpoint / database resource shapes, name formats, "never delete the production branch" rule, discovery via `-h`).
 
 The vendored skills are read-only mirrors of upstream. To pull the latest, run `bash scripts/sync-devhub-skills.sh` and commit any diff in a focused PR. Kit-authored skills wrap the operations; vendored skills document the CLI surface those operations are built on. Agents that consume the kit (e.g. via `install.sh`) inherit both layers.
 
