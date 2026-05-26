@@ -32,8 +32,6 @@ Two narrow auth seams, both enforced by CI grep guards:
 - **`scripts/lakebase/get-connection.ts`** is the only path that mints Lakebase credentials. Every other workflow op calls `getConnection()`. See [skills/lakebase-scm-workflows/references/get-connection.md](skills/lakebase-scm-workflows/references/get-connection.md).
 - **`scripts/github/auth.ts`** is the only path that resolves a GitHub token. Fallback chain: `GITHUB_TOKEN` env → VS Code `getSession` (in the extension host only) → `gh auth token`. See [skills/lakebase-scm-workflows/references/github-auth.md](skills/lakebase-scm-workflows/references/github-auth.md).
 
-When adding a code path that needs Lakebase credentials or a GitHub token, call these two functions. Adding a second call site fails the CI grep guard.
-
 ## Install
 
 For agent use (running `node scripts/lakebase/<verb>.js` directly):
@@ -100,50 +98,9 @@ The package exposes six bins (resolved relative to `node_modules/.bin/` when ins
 - `lakebase-migrate` – apply / rollback / status / list schema migrations against a branch
 - `lakebase-mcp-server` – stdio MCP server exposing the tool registry
 
-## Development
+## Contributing
 
-```bash
-npm run build       # compile TS to dist/
-npm run typecheck   # tsc --noEmit
-npm test            # vitest run (hermetic; live tests skip cleanly)
-npm run test:watch  # vitest --watch
-npm run test:live   # see "Live integration tests" below
-```
-
-### Live integration tests
-
-Hermetic `npm test` skips every test that needs a real Databricks workspace. To run those, use `scripts/run-live-tests.sh` (also wired as `npm run test:live`). Three modes:
-
-| Mode | Required env + tools | What runs | Creates resources? |
-|---|---|---|---|
-| default (migrate) | `DATABRICKS_HOST`, `LAKEBASE_TEST_E2E=1`, authenticated `databricks` CLI, `python3`, `java`, `flyway` | `tests/bdd/migrate-live.test.ts` (alembic) + `tests/bdd/migrate-live-flyway.test.ts` | **Yes**: a `migrate-7091-<timestamp>` and a `migrate-7098-<timestamp>` Lakebase project on `$DATABRICKS_HOST`, each deleted in their suite's `afterAll()` |
-| `--read-only` | `LAKEBASE_TEST_INSTANCE`, `LAKEBASE_TEST_BRANCH` | Read-only schema / endpoint / DSN suites against the configured branch | No |
-| `--all` | both of the above | Everything vitest discovers when gating env is satisfied | Yes (default mode) |
-
-```bash
-# Default mode: self-provisions test projects on $DATABRICKS_HOST.
-# On first run the script creates:
-#   .venv-live-tests/                    (alembic + sqlalchemy + psycopg2-binary)
-#   .tools-live-tests/flyway-<version>/  (Flyway Community CLI; skipped when a `flyway` is already on PATH)
-# Subsequent runs reuse both.
-export DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
-export LAKEBASE_TEST_E2E=1
-npm run test:live
-```
-
-If your network blocks Maven Central (where the Flyway CLI is hosted), install Flyway separately (`brew install flyway`, your internal mirror, etc.) and put it on `PATH` before invoking `npm run test:live`. The script's preflight checks find the pre-installed binary and skips the download.
-
-**Consent model.** Setting `LAKEBASE_TEST_E2E=1 + DATABRICKS_HOST` authorizes the suite to create a Lakebase project on your workspace. The helper script pauses for 5 seconds before the create call with a notice showing the workspace + project name pattern; ctrl-c aborts. Set `LAKEBASE_TEST_NO_PROMPT=1` in CI to skip the pause.
-
-**Cleanup recovery.** Teardown retries delete up to 3 times. If a project still leaks (signal interrupt, crash before `afterAll()`, network blip), clean up manually:
-
-```bash
-databricks postgres delete-project <projectId>
-```
-
-Project names always have a timestamp suffix so re-runs and concurrent runs do not collide.
-
-Individual gating env vars also light up subsets directly: `LAKEBASE_TEST_INSTANCE` + `LAKEBASE_TEST_BRANCH` activates the read-only live tests in any `vitest run` invocation; `LAKEBASE_TEST_INITIALIZR=1` enables the Spring Initializr live fetch; `LAKEBASE_TEST_PARENT` configures the parent for diff suites.
+Maintainer-facing docs (development setup, build, test tiers, the single-seam contributor rule, release flow, and the pull-request checklist) live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Support
 
