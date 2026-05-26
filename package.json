@@ -76,7 +76,9 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepare": "npm run build && husky",
+    "prepare": "tsx scripts/sync-devhub-skills.ts && npm run build && husky",
+    "sync:devhub": "tsx scripts/sync-devhub-skills.ts",
+    "check:devhub": "tsx scripts/sync-devhub-skills.ts --check",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

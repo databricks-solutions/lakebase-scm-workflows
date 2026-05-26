@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "_comment": "FEIP-7143: pinned references to devhub-published agent skills. The substrate's prepare script fetches the listed files at install time; the on-disk dirs under skills/ are NOT committed and are repopulated by the install. FEIP-7144 will add a drift detector that opens a PR when devhub HEAD advances past this pin.",
+  "repo": "databricks/devhub",
+  "ref": "0b6297e1c4b6398fdd8d8f1631461c46f54c2d11",
+  "ref_description": "databricks/devhub@main as of 2026-05-25 (substrate's initial pin; ref must always be a commit SHA, never a branch name, so install-time fetches are reproducible)",
+  "skills": {
+    "databricks-core": [
+      "SKILL.md",
+      "data-exploration.md",
+      "databricks-cli-auth.md",
+      "databricks-cli-install.md",
+      "declarative-automation-bundles.md"
+    ],
+    "databricks-lakebase": [
+      "SKILL.md"
+    ]
+  }
+}
