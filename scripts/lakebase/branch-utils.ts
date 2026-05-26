@@ -14,16 +14,37 @@ export class LakebaseBranchError extends Error {
 }
 
 export interface LakebaseBranchInfo {
-  /** Lakebase-side branch id (often equals the sanitized git branch). */
+  /**
+   * Lakebase-side opaque uid, e.g. "br-broad-sky-d2k5gewt". Returned by
+   * `get-branch` / `list-branches` as the `uid` field. NOT accepted as the
+   * `{branch}` path segment in CLI subresource URLs — use {@link branchId} or
+   * the friendly leaf of {@link name} for those.
+   */
   uid: string;
   /** Full resource name, e.g. "projects/proj-abc/branches/feature-x". */
   name: string;
   /** "READY", "PROVISIONING", etc. */
   state: string;
-  /** Parent branch full name (from spec.source_branch). */
+  /**
+   * Parent branch full resource name (e.g. "projects/x/branches/staging"),
+   * sourced from `status.source_branch` in the Lakebase API response.
+   *
+   * Use {@link sourceBranchId} for just the leaf segment.
+   */
   sourceBranchName?: string;
+  /** Parent branch leaf id (e.g. "staging"). Derived from sourceBranchName. */
+  sourceBranchId?: string;
   /** True if this is the project's default branch. */
   isDefault?: boolean;
+  /**
+   * RFC3339 expiration, e.g. "2026-06-25T05:00:00Z". Present for branches
+   * created with a TTL (workflow tiers feature / test / uat / perf). Absent
+   * for long-running tiers (production / staging) and for legacy branches
+   * created with `no_expiry: true`.
+   */
+  expireTime?: string;
+  /** True if the branch is protected from deletion. */
+  isProtected?: boolean;
 }
 
 export interface BranchLookupOpts {
@@ -93,13 +114,74 @@ export async function resolveBranchPath(
   return branch?.name;
 }
 
+/**
+ * Normalize a branch reference to the friendly `branch_id` (leaf segment,
+ * e.g. "demo-feature", "staging", "production"). This is the form accepted
+ * by CLI subresource URLs like `branches/{x}/endpoints/primary`.
+ *
+ * Accepts any of:
+ *   - branch_id ("demo-feature", or any PSA tier name: "production",
+ *     "staging", "uat", "perf")
+ *   - branch_uid ("br-broad-sky-d2k5gewt")
+ *   - full resource path ("projects/x/branches/demo-feature")
+ *
+ * Throws when the branch can't be resolved (e.g. uid points at nothing).
+ * Fast-path: returns input unchanged for values that don't look like a uid
+ * (no `br-` prefix) and don't include a path prefix — avoids a round-trip
+ * for the common branch_id case.
+ */
+export async function resolveBranchId(
+  args: BranchLookupOpts & { branch: string }
+): Promise<string> {
+  const { branch, ...opts } = args;
+
+  // Full resource path → take the leaf.
+  if (branch.startsWith("projects/") && branch.includes("/branches/")) {
+    const leaf = branch.split("/branches/").pop();
+    if (leaf) return leaf;
+  }
+
+  // Fast path: looks like a branch_id already (no uid prefix). Trust it.
+  if (!branch.startsWith("br-")) {
+    return branch;
+  }
+
+  // Slow path: uid → list + filter to get the friendly id.
+  const info = await getBranchByName(branch, opts);
+  if (!info) {
+    throw new LakebaseBranchError(
+      `Could not resolve branch "${branch}" in project "${opts.instance}". ` +
+        `Pass either the branch_id (e.g. "demo-feature") or the branch uid.`
+    );
+  }
+  const leaf = info.name.split("/branches/").pop();
+  if (!leaf) {
+    throw new LakebaseBranchError(
+      `Branch info for "${branch}" missing a name segment (got "${info.name}").`
+    );
+  }
+  return leaf;
+}
+
 // ── Internal ────────────────────────────────────────────────────
 
 interface RawBranch {
   uid?: string;
   name?: string;
   state?: string;
-  status?: { current_state?: string; default?: boolean };
+  status?: {
+    current_state?: string;
+    default?: boolean;
+    /**
+     * Lakebase returns the parent branch's full resource name here on
+     * `get-branch` responses. Older speculation was `spec.source_branch`
+     * (kept as a fallback for backward compatibility / list-branches shapes
+     * we haven't seen yet).
+     */
+    source_branch?: string;
+    expire_time?: string;
+    is_protected?: boolean;
+  };
   is_default?: boolean;
   spec?: { source_branch?: string };
 }
@@ -110,12 +192,17 @@ function parseBranch(raw: unknown): LakebaseBranchInfo | undefined {
   const name = r.name ?? "";
   if (!name) return undefined;
   const uid = r.uid ?? name.split("/branches/").pop() ?? "";
+  const sourceBranchName = r.status?.source_branch ?? r.spec?.source_branch;
+  const sourceBranchId = sourceBranchName?.split("/branches/").pop() || undefined;
   return {
     uid,
     name,
     state: r.status?.current_state ?? r.state ?? "UNKNOWN",
-    sourceBranchName: r.spec?.source_branch,
+    sourceBranchName,
+    sourceBranchId,
     isDefault: r.status?.default === true || r.is_default === true,
+    expireTime: r.status?.expire_time,
+    isProtected: r.status?.is_protected,
   };
 }
 

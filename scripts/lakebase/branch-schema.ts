@@ -11,6 +11,7 @@
 
 import { Client } from "pg";
 import { getEndpoint, endpointPath as buildEndpointPath } from "./branch-endpoint.js";
+import { resolveBranchId } from "./branch-utils.js";
 import { mintCredential } from "./get-connection.js";
 
 export interface TableSchema {
@@ -20,6 +21,12 @@ export interface TableSchema {
 
 export interface QueryBranchSchemaArgs {
   instance: string;
+  /**
+   * Branch identifier. Accepts branch_id (e.g. "demo-feature"; tier names
+   * "production" / "staging" / "uat" / "perf" are branch_ids), branch_uid
+   * (e.g. "br-broad-sky-d2k5gewt"), or full resource path. Normalized
+   * internally before any CLI URL is built.
+   */
   branch: string;
   /** Default: $PGDATABASE then "databricks_postgres" */
   database?: string;
@@ -43,11 +50,16 @@ const SCHEMA_QUERY =
  * configuration problem the caller should surface.
  */
 export async function queryBranchSchema(args: QueryBranchSchemaArgs): Promise<TableSchema[]> {
-  const ep = await getEndpoint({ instance: args.instance, branch: args.branch });
+  // Normalize once. buildEndpointPath is sync + uses raw interpolation, so
+  // every CLI path downstream needs branch_id (not uid). getEndpoint already
+  // accepts either form via resolveBranchPath, but we normalize here so the
+  // single shared `branchId` flows through both call sites consistently.
+  const branchId = await resolveBranchId({ instance: args.instance, branch: args.branch });
+  const ep = await getEndpoint({ instance: args.instance, branch: branchId });
   if (!ep?.host) {
     return [];
   }
-  const { token, email } = await mintCredential(buildEndpointPath(args.instance, args.branch));
+  const { token, email } = await mintCredential(buildEndpointPath(args.instance, branchId));
   const database = args.database ?? process.env.PGDATABASE ?? "databricks_postgres";
   const skipFlyway = args.skipFlyway !== false;
 

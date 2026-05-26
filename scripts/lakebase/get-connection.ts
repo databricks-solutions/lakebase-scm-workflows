@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { createLakebasePool } from "@databricks/lakebase";
 import type { Pool } from "pg";
+import { resolveBranchId } from "./branch-utils.js";
 // AppKit / @databricks/lakebase re-exports a WorkspaceClient type that
 // matches what createLakebasePool expects. We accept `unknown` at the API
 // boundary so this module doesn't have to take a hard SDK dep just to type
@@ -28,8 +29,13 @@ export interface GetConnectionArgs {
    */
   instance: string;
   /**
-   * Branch id within the project (e.g. "br-feature-xyz"). Maps to
-   * `projects/<instance>/branches/<branch>`.
+   * Branch identifier within the project. Accepts:
+   *   - branch_id (e.g. "demo-feature"; also any PSA tier name:
+   *     "production", "staging", "uat", "perf")
+   *   - branch_uid (e.g. "br-broad-sky-d2k5gewt")
+   *   - full resource path ("projects/x/branches/demo-feature")
+   *
+   * Normalized to branch_id internally before any CLI path is built.
    */
   branch: string;
   /**
@@ -74,17 +80,20 @@ export function getConnection(args: PoolArgs): Promise<Pool>;
 export async function getConnection(args: ConnectionArgs): Promise<DsnResult | Pool> {
   const endpointName = args.endpointName ?? "primary";
   const database = args.database ?? process.env.PGDATABASE ?? "databricks_postgres";
-  const endpointPath = `projects/${args.instance}/branches/${args.branch}/endpoints/${endpointName}`;
+  // Normalize once at the entry point. Every downstream CLI path uses
+  // branchId; callers can hand us uid / branch_id / full path.
+  const branchId = await resolveBranchId({ instance: args.instance, branch: args.branch });
+  const endpointPath = `projects/${args.instance}/branches/${branchId}/endpoints/${endpointName}`;
 
   if (args.output === "dsn") {
-    const host = await resolveEndpointHost(args.instance, args.branch);
+    const host = await resolveEndpointHost(args.instance, branchId);
     const { token, email } = await mintCredential(endpointPath);
     const url = buildPostgresUrl({ host, port: 5432, database, user: email, password: token });
     return { url, host, port: 5432, database, user: email, endpointPath };
   }
 
   // output === "pool"
-  const host = await resolveEndpointHost(args.instance, args.branch);
+  const host = await resolveEndpointHost(args.instance, branchId);
   const email = await resolveCurrentUser();
   return createLakebasePool({
     endpoint: endpointPath,
@@ -99,8 +108,15 @@ export async function getConnection(args: ConnectionArgs): Promise<DsnResult | P
   });
 }
 
+/**
+ * Resolve the primary endpoint host for a branch.
+ *
+ * @param branch  branch_id, branch_uid, or full resource path. Normalized
+ *                internally before the CLI subresource URL is built.
+ */
 export async function resolveEndpointHost(instance: string, branch: string): Promise<string> {
-  const branchPath = `projects/${instance}/branches/${branch}`;
+  const branchId = await resolveBranchId({ instance, branch });
+  const branchPath = `projects/${instance}/branches/${branchId}`;
   const raw = dbcli(["postgres", "list-endpoints", branchPath, "-o", "json"]);
   const endpoints = JSON.parse(raw) as Array<{ status?: { hosts?: { host?: string } } }>;
   if (!Array.isArray(endpoints) || endpoints.length === 0) {

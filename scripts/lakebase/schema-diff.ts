@@ -223,50 +223,39 @@ const colKey = (c: SchemaColumn): string => `${c.name}:${c.dataType}`;
 
 /**
  * Resolve the comparison branch via Lakebase metadata:
- *   1. target branch's `sourceBranchId` (its parent), if set
+ *   1. target branch's `status.source_branch` (its parent), if set – this is
+ *      a full resource path like `projects/x/branches/staging`; we trim to
+ *      the leaf id since downstream CLI subresource URLs need branch_id.
  *   2. project's default branch, otherwise
  *   3. undefined if neither is resolvable
+ *
+ * Historical note: earlier code looked for `source_branch_id` at the top
+ * level of `get-branch` responses. The Lakebase API actually nests it under
+ * `status.source_branch` as the full path. Using the full path leaf means
+ * we never need a uid→name lookup hop.
  */
 function resolveComparisonBranch(instance: string, branch: string): string | undefined {
   const branchInfo = describeBranch(instance, branch);
-  const sourceBranchId = branchInfo?.source_branch_id ?? branchInfo?.sourceBranchId;
-  if (sourceBranchId && typeof sourceBranchId === "string") {
-    // source_branch_id is a UID (br-foo-bar). list-endpoints (and most other
-    // postgres API endpoints) accept the branch NAME, not the UID – passing
-    // the UID returns "branch id not found". Resolve it to a name here.
-    const resolved = resolveBranchNameByUid(instance, sourceBranchId);
-    if (resolved) return resolved;
+  const sourceBranch = branchInfo?.status?.source_branch ?? branchInfo?.spec?.source_branch;
+  if (sourceBranch && typeof sourceBranch === "string") {
+    const leaf = sourceBranch.split("/branches/").pop();
+    if (leaf) return leaf;
   }
   const def = findDefaultBranch(instance);
   if (def) return def;
   return undefined;
 }
 
-/**
- * Translate a Lakebase branch UID (`br-foo-bar`) into its branch NAME
- * (`production`, `staging`, etc.). Returns undefined when no matching
- * branch exists. Required because `postgres list-endpoints` accepts the
- * name segment but get-branch reports source_branch_id as the UID.
- */
-function resolveBranchNameByUid(instance: string, uid: string): string | undefined {
-  try {
-    const raw = dbcli(["postgres", "list-branches", `projects/${instance}`, "-o", "json"]);
-    const parsed = JSON.parse(raw) as BranchMetadata[] | { branches?: BranchMetadata[]; items?: BranchMetadata[] };
-    const items = Array.isArray(parsed) ? parsed : parsed.branches ?? parsed.items ?? [];
-    const match = items.find((b) => b.uid === uid);
-    if (!match) return undefined;
-    return match.name?.split("/branches/").pop();
-  } catch {
-    return undefined;
-  }
-}
-
 interface BranchMetadata {
   uid?: string;
   name?: string;
-  source_branch_id?: string;
-  sourceBranchId?: string;
-  status?: { default?: boolean };
+  status?: {
+    default?: boolean;
+    /** Parent branch's full resource name when the branch was forked. */
+    source_branch?: string;
+  };
+  /** Kept as a fallback for list-branches responses that haven't surfaced status.source_branch. */
+  spec?: { source_branch?: string };
   is_default?: boolean;
 }
 

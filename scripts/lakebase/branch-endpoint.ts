@@ -6,7 +6,7 @@
 // sanitized name, or full resource path.
 
 import { execFileSync } from "node:child_process";
-import { resolveBranchPath } from "./branch-utils.js";
+import { resolveBranchId, resolveBranchPath } from "./branch-utils.js";
 import { mintCredential } from "./get-connection.js";
 
 export interface EndpointInfo {
@@ -63,6 +63,13 @@ export async function getEndpoint(args: GetEndpointArgs): Promise<EndpointInfo |
  * Build the canonical endpoint resource path that mintCredential expects.
  * Convenience helper – most callers go through getConnection() which builds
  * this internally.
+ *
+ * **NOTE:** synchronous; does NOT normalize uid → branch_id. Caller is
+ * responsible for passing `branch_id` (the friendly leaf, e.g.
+ * "demo-feature" / "staging" / "production"). If you might be holding a
+ * uid, await {@link resolveBranchId} from `./branch-utils.js` first.
+ * The async helpers in this file (getEndpoint, ensureEndpoint, getCredential)
+ * normalize for you.
  */
 export function endpointPath(instance: string, branch: string, endpointName = "primary"): string {
   return `projects/${instance}/branches/${branch}/endpoints/${endpointName}`;
@@ -92,12 +99,15 @@ export interface EnsureEndpointArgs {
  */
 export async function ensureEndpoint(args: EnsureEndpointArgs): Promise<EndpointInfo> {
   const endpointName = args.endpointName ?? "primary";
-  const existing = await getEndpoint({ instance: args.instance, branch: args.branch, endpointName });
+  // Normalize once. Below, branchId flows into both the create-endpoint CLI
+  // path and the retry/poll getEndpoint calls.
+  const branchId = await resolveBranchId({ instance: args.instance, branch: args.branch });
+  const existing = await getEndpoint({ instance: args.instance, branch: branchId, endpointName });
   if (existing?.host) {
     return existing;
   }
 
-  const branchPath = `projects/${args.instance}/branches/${args.branch}`;
+  const branchPath = `projects/${args.instance}/branches/${branchId}`;
   const spec = {
     spec: {
       endpoint_type: args.endpointType ?? "ENDPOINT_TYPE_READ_WRITE",
@@ -116,7 +126,7 @@ export async function ensureEndpoint(args: EnsureEndpointArgs): Promise<Endpoint
   } catch (err) {
     // Race: the endpoint may have been created between our getEndpoint check
     // and the create call. Re-check before failing.
-    const racy = await getEndpoint({ instance: args.instance, branch: args.branch, endpointName });
+    const racy = await getEndpoint({ instance: args.instance, branch: branchId, endpointName });
     if (racy?.host) return racy;
     throw err;
   }
@@ -125,7 +135,7 @@ export async function ensureEndpoint(args: EnsureEndpointArgs): Promise<Endpoint
   const timeoutMs = args.timeoutMs ?? 120_000;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const ep = await getEndpoint({ instance: args.instance, branch: args.branch, endpointName });
+    const ep = await getEndpoint({ instance: args.instance, branch: branchId, endpointName });
     if (ep?.host) return ep;
     await new Promise((r) => setTimeout(r, 5_000));
   }
