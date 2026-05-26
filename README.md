@@ -3,8 +3,8 @@
 Lakebase-backed application development kit. The shared foundation that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and coding agents – Claude Code (terminal), Claude Desktop, OpenAI Foundry, Cursor, and Databricks Genie Code – all consume. One canonical implementation; multiple presentation layers and workflow-domain skills.
 
 **Workflow domains** (kit-authored, one skill each, hosted under `skills/`):
-- **`lakebase-scm-workflows`** – paired-branch source control, schema diff, PR flow, runner setup. (Today.)
-- **`lakebase-release-workflows`** – branching + release methodology for Lakebase-paired projects.
+- **[`lakebase-scm-workflows`](skills/lakebase-scm-workflows/SKILL.md)** – paired-branch source control, schema diff, PR flow, runner setup.
+- **[`lakebase-release-workflows`](skills/lakebase-release-workflows/SKILL.md)** – branching + release methodology for Lakebase-paired projects.
 - **`lakebase-tdd-workflows`** – test-driven development against paired branches. (Coming – FEIP-7066.)
 - Future domains include deploying to Databricks Apps and beyond.
 
