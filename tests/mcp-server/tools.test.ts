@@ -40,6 +40,7 @@ describe("MCP tool registry", () => {
     expect(TOOLS.map((t) => t.name).sort()).toEqual([
       "lakebase_apply_migrations",
       "lakebase_create_project",
+      "lakebase_feature_status",
       "lakebase_get_connection",
       "lakebase_github_token",
       "lakebase_list_migrations",
@@ -84,6 +85,17 @@ describe("MCP tool registry", () => {
     const tool = findTool("lakebase_github_token")!;
     const required = (tool.inputSchema as { required?: string[] }).required;
     expect(required ?? []).toEqual([]);
+  });
+
+  it("feature_status: requires featureId, tddDir optional", () => {
+    const tool = findTool("lakebase_feature_status")!;
+    const schema = tool.inputSchema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["featureId"]);
+    expect(schema.properties).toHaveProperty("featureId");
+    expect(schema.properties).toHaveProperty("tddDir");
   });
 });
 

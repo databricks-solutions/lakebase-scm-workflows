@@ -260,3 +260,103 @@ describe("feature-status JSON payload — stable schema", () => {
     expect(Array.isArray(s.open_smells)).toBe(true);
   });
 });
+
+// N≥2 race coverage: the same primitive surfaces multiple experiments when
+// the design-spec gate has approved a parallel race. Renderer and JSON
+// payload both handle the multi-experiment shape without special casing.
+
+const N2_PLAN: ExperimentPlan = {
+  feature_id: FEATURE_ID,
+  N: 2,
+  mode: "N>=2",
+  strategies: [
+    { name: "postgres-arrays", rationale: "store cart as array column on orders" },
+    { name: "json-blob", rationale: "store cart as jsonb on separate carts table" },
+  ],
+  budget: { concurrent_branches: 2, wall_clock_minutes: 240, agent_pairs: 2 },
+  rationale: "opinion gap: storage shape for the cart",
+};
+
+function stageExperiment(
+  slug: string,
+  branchId: string,
+  outcomes: {
+    status: "running" | "succeeded" | "failed" | "abandoned";
+    tests_passed?: number;
+    tests_failed?: number;
+  },
+  cycleCount: number
+) {
+  const dir = join(tdd, "experiments", FEATURE_ID, slug);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "branch.txt"), branchId);
+  writeFileSync(join(dir, "notes.md"), `# ${slug}\n`);
+  writeFileSync(join(dir, "outcomes.json"), JSON.stringify(outcomes));
+  const entries = Array.from({ length: cycleCount }, (_, i) => ({
+    ts: `2026-05-27T10:${String(i).padStart(2, "0")}:00Z`,
+    kind: i === 0 ? "cut" : "cycle",
+  }));
+  writeFileSync(join(dir, "timeline.json"), JSON.stringify({ entries }));
+}
+
+function stageN2Fixture() {
+  writeMasterTestList(tdd, {
+    feature_id: FEATURE_ID,
+    items: [
+      { id: "T1", description: "happy path", ac_id: "AC1", status: "green" },
+      { id: "T2", description: "reject empty", ac_id: "AC1", status: "pending" },
+    ],
+  });
+  writePlan(tdd, N2_PLAN);
+  recordPlan(tdd, N2_PLAN, "kevin.hartman@databricks.com");
+  stageExperiment("exp-postgres-arrays", "br-exp-pg-arrays", { status: "succeeded", tests_passed: 2, tests_failed: 0 }, 3);
+  stageExperiment("exp-json-blob", "br-exp-json-blob", { status: "running", tests_passed: 1, tests_failed: 1 }, 2);
+  writeFileSync(
+    join(tdd, "workflow-state.json"),
+    JSON.stringify({
+      phase: "implementation",
+      started_at: "2026-05-27T10:00:00Z",
+      feature_id: FEATURE_ID,
+    })
+  );
+}
+
+describe("feature-status N≥2 race snapshot", () => {
+  it("snapshot returns one entry per experiment with per-experiment status + cycles", () => {
+    stageN2Fixture();
+    const snapshot = getFeatureStatus(tdd, FEATURE_ID);
+
+    expect(snapshot.plan?.mode).toBe("N>=2");
+    expect(snapshot.plan?.N).toBe(2);
+    expect(snapshot.plan?.strategies).toHaveLength(2);
+
+    expect(snapshot.experiments).toHaveLength(2);
+    const bySlug = Object.fromEntries(snapshot.experiments.map((e) => [e.slug, e]));
+    expect(bySlug["exp-postgres-arrays"].status).toBe("succeeded");
+    expect(bySlug["exp-postgres-arrays"].cycle_count).toBe(3);
+    expect(bySlug["exp-postgres-arrays"].tests_passed).toBe(2);
+    expect(bySlug["exp-json-blob"].status).toBe("running");
+    expect(bySlug["exp-json-blob"].cycle_count).toBe(2);
+    expect(bySlug["exp-json-blob"].tests_failed).toBe(1);
+  });
+
+  it("renderer shows the plan as N>=2 and lists both experiment rows", () => {
+    stageN2Fixture();
+    const text = renderFeatureStatus(getFeatureStatus(tdd, FEATURE_ID));
+    expect(text).toMatch(/Plan: N>=2 \(N=2, 2 strategies\)/);
+    expect(text).toMatch(/Experiments \(2\)/);
+    expect(text).toMatch(/exp-postgres-arrays\s+branch=br-exp-pg-arrays/);
+    expect(text).toMatch(/exp-json-blob\s+branch=br-exp-json-blob/);
+    expect(text).toMatch(/status=succeeded/);
+    expect(text).toMatch(/status=running/);
+  });
+
+  it("JSON payload keeps the documented shape under N≥2 (multi-experiment)", () => {
+    stageN2Fixture();
+    const s = getFeatureStatus(tdd, FEATURE_ID);
+    expect(Object.keys(s).sort()).toEqual([...TOP_LEVEL_KEYS].sort());
+    for (const exp of s.experiments) {
+      expect(Object.keys(exp).sort()).toEqual([...EXPERIMENT_KEYS].sort());
+    }
+  });
+});

@@ -160,6 +160,10 @@ interface SmellHit {
 }
 ```
 
+## N=1 vs N≥2
+
+The shape does not branch on `plan.mode`. An N=1 feature has `experiments.length === 1` (the feature branch); an N≥2 race has `experiments.length === N`. The same renderer surfaces both, with one row per experiment. Cross-experiment comparison rendering (`promote` vs `synthesize` decision aid) is intentionally out of scope here; that lives in the comparison-report renderer (FEIP-7208), which consumes the `experiments` array + per-experiment `outcomes.json` directly.
+
 ## Versioning
 
 The shape carries no version field. Stability is enforced by the BDD assertion in `tests/bdd/tdd-feature-status.test.ts` (the "stable JSON schema shape" test). Any field addition that breaks that assertion is a contract change that needs deliberate review.
