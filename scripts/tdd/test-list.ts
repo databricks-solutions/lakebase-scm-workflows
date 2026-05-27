@@ -103,14 +103,3 @@ function findFeatureDir(tddDir: string, featureId: string): string {
   }
   return join(featuresDir, candidates[0]);
 }
-
-if (require.main === module) {
-  const [tddDir = ".tdd", featureId] = process.argv.slice(2);
-  if (!featureId) {
-    console.error("usage: test-list <tddDir> <featureId>");
-    process.exit(1);
-  }
-  const list = readMasterTestList(tddDir, featureId);
-  const written = writePerAcViews(tddDir, featureId, list);
-  for (const f of written) console.log(`wrote ${f}`);
-}

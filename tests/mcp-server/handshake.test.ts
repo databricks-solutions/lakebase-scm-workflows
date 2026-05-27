@@ -113,6 +113,7 @@ describe("MCP server stdio handshake", () => {
     expect(names).toEqual([
       "lakebase_apply_migrations",
       "lakebase_create_project",
+      "lakebase_feature_status",
       "lakebase_get_connection",
       "lakebase_github_token",
       "lakebase_list_migrations",

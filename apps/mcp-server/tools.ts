@@ -21,6 +21,7 @@ import {
   listMigrations,
   type MigrationLanguage,
 } from "../../scripts/lakebase/migrate.js";
+import { getFeatureStatus } from "../../scripts/tdd/feature-status.js";
 
 export interface ToolDefinition {
   name: string;
@@ -300,6 +301,26 @@ export const TOOLS: ToolDefinition[] = [
         database: optionalString(args, "database"),
         endpointName: optionalString(args, "endpointName"),
       });
+    },
+  },
+  {
+    name: "lakebase_feature_status",
+    description:
+      "One-screen snapshot of a feature's TDD workflow state (phase, plan, test-list completion, experiments, recent decisions, open smells). Reads .tdd/ on disk; no Lakebase or network calls. See skills/lakebase-tdd-workflows/references/feature-status-schema.md for the stable payload contract.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        featureId: { type: "string", description: "Feature id (e.g., 'F1-checkout')." },
+        tddDir: { type: "string", description: "Path to the .tdd/ directory. Default: './.tdd'." },
+      },
+      required: ["featureId"],
+      additionalProperties: false,
+    },
+    handler: async (args) => {
+      return getFeatureStatus(
+        optionalString(args, "tddDir") ?? "./.tdd",
+        requireString(args, "featureId")
+      );
     },
   },
 ];

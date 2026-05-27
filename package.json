@@ -72,6 +72,7 @@
     "lakebase-migrate": "./dist/scripts/lakebase/migrate.cli.js",
     "lakebase-cut-backup": "./dist/scripts/lakebase/cut-backup.cli.js",
     "lakebase-detect-language": "./dist/scripts/lakebase/detect-language.cli.js",
+    "lakebase-feature-status": "./dist/scripts/tdd/feature-status.cli.js",
     "lakebase-mcp-server": "./dist/apps/mcp-server/index.js"
   },
   "scripts": {

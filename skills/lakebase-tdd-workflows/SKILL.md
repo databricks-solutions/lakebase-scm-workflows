@@ -384,5 +384,6 @@ For non-agent invocation (debugging, CI introspection):
 
 | Command | Purpose |
 |---|---|
-| `node scripts/tdd/spec-sync.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exits 0 even when reports exist — warn-only. |
-| `node scripts/tdd/test-list.js <tddDir> <featureId>` | Regenerate per-AC views from the feature-level master test list. |
+| `lakebase-feature-status <featureId> [--tdd <dir>] [--json]` | One-screen snapshot of a feature's TDD workflow state. Use `--json` for machine-readable payload. |
+| `node dist/scripts/tdd/spec-sync.cli.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exits 0 even when reports exist (warn-only). |
+| `node dist/scripts/tdd/test-list.cli.js <tddDir> <featureId>` | Regenerate per-AC views from the feature-level master test list. |

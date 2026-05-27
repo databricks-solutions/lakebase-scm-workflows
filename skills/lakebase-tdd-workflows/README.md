@@ -163,9 +163,10 @@ For when you want to run something directly without the agent. Most TDD work goe
 
 | Command | Purpose |
 |---|---|
-| `node scripts/tdd/spec-sync.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exit 0 even when reports exist — warn-only by design. |
-| `node scripts/tdd/test-list.js <tddDir> <featureId>` | Regenerate per-AC views from the feature-level master test list. |
-| `bash tests/run_all.sh` (per scaffolded project) | Run every `validate_*.sh` in the project's `tests/` directory — the project's full validation suite. |
+| `lakebase-feature-status <featureId> [--tdd <dir>] [--json]` | One-screen snapshot of a feature's TDD workflow state (phase, plan, test-list completion, experiments, recent decisions, open smells). |
+| `node dist/scripts/tdd/spec-sync.cli.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exit 0 even when reports exist (warn-only by design). |
+| `node dist/scripts/tdd/test-list.cli.js <tddDir> <featureId>` | Regenerate per-AC views from the feature-level master test list. |
+| `bash tests/run_all.sh` (per scaffolded project) | Run every `validate_*.sh` in the project's `tests/` directory (the project's full validation suite). |
 
 ## Project-level entry points
 

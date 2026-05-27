@@ -208,16 +208,3 @@ function checkPair(
     });
   }
 }
-
-if (require.main === module) {
-  const tddDir = process.argv[2] || ".tdd";
-  const reports = validateSpec(tddDir);
-  if (reports.length === 0) {
-    console.log(`spec-sync: OK (${tddDir})`);
-    process.exit(0);
-  }
-  for (const r of reports) {
-    console.warn(`[${r.kind}] ${r.file}: ${r.detail}`);
-  }
-  process.exit(0);
-}
