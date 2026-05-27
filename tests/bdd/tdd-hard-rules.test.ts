@@ -2,34 +2,11 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const SKILL_PATH = join(
-  __dirname,
-  "..",
-  "..",
-  "skills",
-  "lakebase-tdd-workflows",
-  "SKILL.md"
-);
-
-const NAV_PATH = join(
-  __dirname,
-  "..",
-  "..",
-  "skills",
-  "lakebase-tdd-workflows",
-  "agents",
-  "navigator.md"
-);
-
-const DRV_PATH = join(
-  __dirname,
-  "..",
-  "..",
-  "skills",
-  "lakebase-tdd-workflows",
-  "agents",
-  "driver.md"
-);
+const SKILL_DIR = join(__dirname, "..", "..", "skills", "lakebase-tdd-workflows");
+const SKILL_PATH = join(SKILL_DIR, "SKILL.md");
+const README_PATH = join(SKILL_DIR, "README.md");
+const NAV_PATH = join(SKILL_DIR, "agents", "navigator.md");
+const DRV_PATH = join(SKILL_DIR, "agents", "driver.md");
 
 const NINE_RULES_PHRASES = [
   "immutable until the test list itself is renegotiated",
@@ -45,25 +22,30 @@ const NINE_RULES_PHRASES = [
 
 describe("lakebase-tdd-workflows hard rules", () => {
   const skill = readFileSync(SKILL_PATH, "utf8");
+  const readme = readFileSync(README_PATH, "utf8");
 
   it("SKILL.md contains a ## Hard rules section", () => {
     expect(skill).toMatch(/^##\s+Hard rules/m);
   });
 
-  it("SKILL.md ships a ## How to use section with worked examples", () => {
-    expect(skill).toMatch(/^##\s+How to use/m);
+  it("README.md ships a ## How to use section with worked prompts", () => {
+    expect(readme).toMatch(/^##\s+How to use/m);
     // Flow 1: spec authoring + drift validation.
-    expect(skill).toMatch(/Author a feature spec/i);
+    expect(readme).toMatch(/Author a feature spec/i);
     // Flow 2: N=1 default — lead with feature-oriented language.
-    expect(skill).toMatch(/Build a feature end-to-end/i);
-    expect(skill).toMatch(/N=1 default/i);
+    expect(readme).toMatch(/Build a feature end-to-end/i);
+    expect(readme).toMatch(/N=1 default/i);
     // Flow 3: N>=2 parallel experiments.
-    expect(skill).toMatch(/Race parallel experiments/i);
+    expect(readme).toMatch(/Race parallel experiments/i);
   });
 
-  it("Lexicon makes feature-vs-experiment terminology explicit for N=1", () => {
-    // When N=1 the experiment IS the feature; SKILL.md must say so somewhere in the lexicon.
-    expect(skill).toMatch(/experiment IS the feature/i);
+  it("README.md lexicon makes feature-vs-experiment terminology explicit for N=1", () => {
+    // When N=1 the experiment IS the feature; README.md lexicon must say so.
+    expect(readme).toMatch(/experiment IS the feature/i);
+  });
+
+  it("SKILL.md points readers to README.md for the human-facing overview", () => {
+    expect(skill).toContain("README.md");
   });
 
   it("SKILL.md has at least 9 numbered rules", () => {

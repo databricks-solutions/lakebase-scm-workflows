@@ -3,9 +3,9 @@
 Lakebase-backed application development kit. The shared foundation that the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) (VS Code/Cursor) and coding agents – Claude Code (terminal), Claude Desktop, OpenAI Foundry, Cursor, and Databricks Genie Code – all consume. One canonical implementation; multiple presentation layers and workflow-domain skills.
 
 **Workflow domains** (kit-authored, one skill each, hosted under `skills/`):
-- **[`lakebase-scm-workflows`](skills/lakebase-scm-workflows/SKILL.md)** – paired-branch source control, schema diff, PR flow, runner setup.
+- **[`lakebase-scm-workflows`](skills/lakebase-scm-workflows/README.md)** – paired-branch source control, schema diff, PR flow, runner setup.
 - **[`lakebase-release-workflows`](skills/lakebase-release-workflows/SKILL.md)** – branching + release methodology for Lakebase-paired projects.
-- **[`lakebase-tdd-workflows`](skills/lakebase-tdd-workflows/SKILL.md)** – test-driven development against paired branches: portable spec format, experiment / spike primitives, design-spec gate, single-experiment cycle wrapper, synthesis + bad-smell detection, Scrum-Master orchestrator with HITL gates at every phase boundary.
+- **[`lakebase-tdd-workflows`](skills/lakebase-tdd-workflows/README.md)** – test-driven development against paired branches: portable spec format, experiment / spike primitives, design-spec gate, single-experiment cycle wrapper, synthesis + bad-smell detection, Scrum-Master orchestrator with HITL gates at every phase boundary.
 - Future domains include deploying to Databricks Apps and beyond.
 
 **Shared canon** (kit-authored, unprefixed because not Lakebase-specific):
