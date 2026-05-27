@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://databricks-solutions.github.io/lakebase-app-dev-kit/schemas/ac.schema.json",
+  "title": "AcceptanceCriterion",
+  "description": "One observable behavior. Tagged API / E2E / Infra. Maps to one or more scenarios in the test list.",
+  "type": "object",
+  "required": ["id", "layer", "given", "when", "then", "status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^AC[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "layer": {
+      "type": "string",
+      "enum": ["API", "E2E", "Infra"],
+      "description": "Which layer the AC exercises. Assigned by Architect Reviewer in phase 7.1."
+    },
+    "given": {
+      "type": "string",
+      "description": "Precondition (Gherkin Given)."
+    },
+    "when": {
+      "type": "string",
+      "description": "Action (Gherkin When)."
+    },
+    "then": {
+      "type": "string",
+      "description": "Expected outcome (Gherkin Then)."
+    },
+    "scenarios": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Scenario filenames or IDs that exercise this AC."
+    },
+    "nfrs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "requirement"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["performance", "scalability", "security", "observability", "operability", "resilience"]
+          },
+          "requirement": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "architectural_notes": {
+      "type": "string",
+      "description": "Layer assignment rationale, cross-cutting concerns touched, owner module."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "approved", "in-progress", "passing", "deprecated"]
+    },
+    "story_id": {
+      "type": "string",
+      "pattern": "^S[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "external_ref": {
+      "type": "object",
+      "properties": {
+        "adapter": { "type": "string" },
+        "external_id": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

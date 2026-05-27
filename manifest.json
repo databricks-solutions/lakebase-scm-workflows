@@ -1,29 +1,7 @@
 {
   "version": "2",
-  "updated_at": "2026-05-25T19:38:58Z",
+  "updated_at": "2026-05-27T14:17:53Z",
   "skills": {
-    "databricks-core": {
-      "version": "0.1.0",
-      "description": "Databricks CLI operations: auth, profiles, data exploration, and bundles. Contains up-to-date guidelines for Databricks-related CLI tasks.",
-      "experimental": false,
-      "updated_at": "2026-05-25T19:38:01Z",
-      "files": [
-        "SKILL.md",
-        "data-exploration.md",
-        "databricks-cli-auth.md",
-        "databricks-cli-install.md",
-        "declarative-automation-bundles.md"
-      ]
-    },
-    "databricks-lakebase": {
-      "version": "0.1.0",
-      "description": "Manage Lakebase Postgres Autoscaling projects, branches, and endpoints via Databricks CLI. Use when asked to create, configure, or manage Lakebase Postgres databases, projects, branches, computes, or endpoints.",
-      "experimental": false,
-      "updated_at": "2026-05-25T19:38:03Z",
-      "files": [
-        "SKILL.md"
-      ]
-    },
     "lakebase-release-workflows": {
       "version": "0.2.0",
       "description": "Opinionated branching + release methodology for Lakebase-paired projects. Use when designing a project's branch layout, cutting a release candidate, promoting between long-running tiers, rolling back, or asking 'where should this work happen?' Encodes the prod / staging / {feature,test,uat,perf} default and the N-tier-capable cut-RC / regression-test / cut-backup / migrate release flow.",
@@ -46,6 +24,37 @@
         "assets/databricks.svg",
         "references/get-connection.md",
         "references/github-auth.md"
+      ]
+    },
+    "lakebase-tdd-workflows": {
+      "version": "0.0.0",
+      "description": "Test-driven development against paired Lakebase branches. Canonical Beck-style RED-GREEN-REFACTOR composed with paired-branch primitives (cheap experiments, parent-aware schema diff, real per-branch databases). Use when planning a new feature, running design-spec gates, running TDD cycles, comparing parallel experiments, or detecting workflow bad smells. Imports software-design-principles canon. Builds on lakebase-scm-workflows + lakebase-release-workflows.",
+      "experimental": false,
+      "updated_at": "2026-05-27T05:37:41Z",
+      "files": [
+        "SKILL.md",
+        "agents/architect-reviewer.md",
+        "agents/driver.md",
+        "agents/navigator.md",
+        "agents/scrum-master.md",
+        "agents/test-strategist.md",
+        "references/spec-format.md"
+      ]
+    },
+    "software-design-principles": {
+      "version": "0.0.0",
+      "description": "Foundational engineering canon \u2014 SOLID, DRY, DTSTTCPW, clean code, layered architecture, cross-cutting concerns, NFRs. Imported by workflow skills (lakebase-tdd-workflows, lakebase-scm-workflows, lakebase-release-workflows) and project skills that need shared engineering vocabulary. Use when: designing a new module, reviewing a PR, planning a refactor, mapping cross-cutting concerns to layers, or arguing about API shape.",
+      "experimental": false,
+      "updated_at": "2026-05-27T05:02:57Z",
+      "files": [
+        "SKILL.md",
+        "references/clean-code.md",
+        "references/cross-cutting-concerns.md",
+        "references/dry.md",
+        "references/dtsttcpw.md",
+        "references/layered-architecture.md",
+        "references/nfrs.md",
+        "references/solid.md"
       ]
     }
   }

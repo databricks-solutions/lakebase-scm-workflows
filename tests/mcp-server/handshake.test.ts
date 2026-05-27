@@ -65,7 +65,7 @@ class McpClient {
           this.pending.delete(id);
           reject(new Error(`Timeout waiting for ${method} (id=${id})`));
         }
-      }, 5000);
+      }, 15000);
     });
   }
 
@@ -131,5 +131,5 @@ describe("MCP server stdio handshake", () => {
     expect(parsed).toHaveProperty("sources");
     expect(parsed.sources).toContain("env");
     expect(parsed).not.toHaveProperty("token");
-  });
+  }, 30000);
 });

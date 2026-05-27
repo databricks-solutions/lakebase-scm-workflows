@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://databricks-solutions.github.io/lakebase-app-dev-kit/schemas/test-list.schema.json",
+  "title": "TestList",
+  "description": "Beck-style ordered test list at the feature level. Ordering drives design momentum.",
+  "type": "object",
+  "required": ["feature_id", "items"],
+  "properties": {
+    "feature_id": {
+      "type": "string",
+      "pattern": "^F[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "ordered_for": {
+      "type": "string",
+      "enum": ["design-momentum", "risk-first", "happy-path-first"],
+      "default": "design-momentum",
+      "description": "Ordering rationale chosen by the Test Strategist."
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "ac_id", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^T[0-9]+(-[a-z0-9-]+)?$",
+            "description": "Test item identifier within this list."
+          },
+          "description": {
+            "type": "string",
+            "description": "Single-sentence behavioral scenario."
+          },
+          "ac_id": {
+            "type": "string",
+            "pattern": "^AC[0-9]+(-[a-z0-9-]+)?$",
+            "description": "Acceptance criterion this test exercises."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "red", "green", "refactored", "skipped"]
+          },
+          "scenario_file": {
+            "type": "string",
+            "description": "Relative path to the .feature or .test.ts file."
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

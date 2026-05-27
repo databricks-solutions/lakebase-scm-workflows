@@ -62,7 +62,7 @@ const { data } = await octokit.rest.users.getAuthenticated();
 The extension's `src/utils/githubAuth.ts` becomes a thin wrapper that adds the *interactive* path on top of the shared resolver:
 
 ```ts
-// src/utils/githubAuth.ts (post-FEIP-7068, post-FEIP-7065)
+// src/utils/githubAuth.ts
 import { resolveGitHubToken, tryVsCodeSession }
   from "@databricks-solutions/lakebase-app-dev-kit";
 
@@ -81,8 +81,8 @@ export async function ensureGitHubAuth(): Promise<string> {
 }
 ```
 
-Pre-FEIP-7065, the extension keeps its own resolver and consumes this helper once the npm package is installable.
+Before this substrate existed, the extension kept its own resolver. It now consumes this helper.
 
 ## Why one helper
 
-GitHub credentials come from at least three places in our setup (env var, VS Code session, gh CLI). Letting each call site pick its own source produces drift – different paths handle missing creds with different error messages, and a bug in one path is invisible from the others. One seam, one fallback chain, one grep guard. Same shape as the Lakebase credential helper (`get-connection.ts`, FEIP-7061).
+GitHub credentials come from at least three places in our setup (env var, VS Code session, gh CLI). Letting each call site pick its own source produces drift – different paths handle missing creds with different error messages, and a bug in one path is invisible from the others. One seam, one fallback chain, one grep guard. Same shape as the Lakebase credential helper (`get-connection.ts`).

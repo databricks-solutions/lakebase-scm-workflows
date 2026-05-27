@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://databricks-solutions.github.io/lakebase-app-dev-kit/schemas/feature.schema.json",
+  "title": "Feature",
+  "description": "A user-facing capability in the TDD workflow. Has one or more stories, each with one or more acceptance criteria. Lives on one feature branch.",
+  "type": "object",
+  "required": ["id", "name", "status", "tdd_mode"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^F[0-9]+(-[a-z0-9-]+)?$",
+      "description": "Feature identifier, e.g. F1 or F1-partner-submits-assets."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Human-readable feature name."
+    },
+    "nfrs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "requirement"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["performance", "scalability", "security", "observability", "operability", "resilience"]
+          },
+          "requirement": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Non-functional requirements. Populated by Architect Reviewer in phase 7.1."
+    },
+    "success_metrics": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Observable metrics that signal the feature is working in production."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "spec-approved", "test-list-approved", "in-progress", "ready-for-review", "shipped", "abandoned"]
+    },
+    "stories": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^S[0-9]+(-[a-z0-9-]+)?$" },
+      "description": "Story IDs that compose this feature."
+    },
+    "tdd_mode": {
+      "type": "string",
+      "enum": ["N=1", "N>=2"],
+      "description": "Iterative refinement (N=1) or parallel experiments (N>=2)."
+    },
+    "experiment_count_default": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Default experiment count for this feature. Overridable per phase."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Email or display name of the Product Owner."
+    },
+    "external_ref": {
+      "type": "object",
+      "description": "Adapter-specific external reference (e.g. JIRA key).",
+      "properties": {
+        "adapter": { "type": "string" },
+        "external_id": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -39,6 +39,8 @@ export interface CreateProjectArgs {
   language?: "java" | "kotlin" | "python" | "nodejs";
   /** CI runner type (default: 'self-hosted'). */
   runnerType?: "self-hosted" | "github-hosted";
+  /** Lay down the .tdd/ scaffold from templates/tdd-bootstrap/ (default: true). */
+  enableTdd?: boolean;
 }
 
 export interface CreateProjectResult {
@@ -78,6 +80,7 @@ export async function createProject(
   const useGithub = input.createGithubRepo !== false;
   const language = input.language ?? "java";
   const runnerType = input.runnerType ?? "self-hosted";
+  const enableTdd = input.enableTdd !== false;
   const warnings: string[] = [];
 
   if (useGithub && !input.githubOwner) {
@@ -160,6 +163,12 @@ export async function createProject(
     report: (m, d) => report(m, d),
   });
 
+  // ── Step 5b: .tdd/ scaffold (lakebase-tdd-workflows bootstrap) ────────
+  if (enableTdd) {
+    report("Scaffolding .tdd/ workflow directory...");
+    layDownTddScaffold(projectDir);
+  }
+
   // (Step 6 – write .env – intentionally removed.)
   // Substrate ships .env.example only; .env is gitignored and never committed.
   // The post-checkout hook bootstraps .env from .env.example on first switch
@@ -241,3 +250,31 @@ export async function createProject(
 
 // Re-exports for callers that only need ported leaves.
 export { writeEnvFile, verifyHooks, verifyWorkflows, verifyProject };
+
+/**
+ * Copy templates/tdd-bootstrap/.tdd/ into <targetDir>/.tdd/.
+ *
+ * Resolves the bootstrap source relative to this script's location so it works
+ * both when the substrate is consumed via git URL (dist + src co-located) and
+ * when it's invoked directly from a dev clone.
+ *
+ * Safe to call when <targetDir>/.tdd/ already exists — existing files are not
+ * overwritten so a project that already started TDD work is preserved.
+ */
+export function layDownTddScaffold(targetDir: string): void {
+  const fs = require("fs") as typeof import("fs");
+  const pathMod = require("path") as typeof import("path");
+  const candidates = [
+    pathMod.resolve(__dirname, "../../templates/tdd-bootstrap/.tdd"),
+    pathMod.resolve(__dirname, "../../../templates/tdd-bootstrap/.tdd"),
+  ];
+  const source = candidates.find((c) => fs.existsSync(c));
+  if (!source) {
+    throw new Error(`tdd-bootstrap template not found; looked in: ${candidates.join(", ")}`);
+  }
+  const dest = pathMod.join(targetDir, ".tdd");
+  if (fs.existsSync(dest)) {
+    return;
+  }
+  fs.cpSync(source, dest, { recursive: true });
+}

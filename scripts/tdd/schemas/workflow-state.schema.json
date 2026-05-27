@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://databricks-solutions.github.io/lakebase-app-dev-kit/schemas/workflow-state.schema.json",
+  "title": "WorkflowState",
+  "description": "Current TDD workflow phase + locus of activity. Single source of truth read by status surfaces and the orchestrator.",
+  "type": "object",
+  "required": ["phase", "started_at"],
+  "properties": {
+    "phase": {
+      "type": "string",
+      "enum": [
+        "discovery",
+        "architectural-review",
+        "test-list-construction",
+        "design-spec-gate",
+        "implementation",
+        "synthesis",
+        "review",
+        "shipped",
+        "abandoned"
+      ],
+      "description": "Current phase per design-spec section 7."
+    },
+    "feature_id": {
+      "type": ["string", "null"],
+      "pattern": "^F[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "story_id": {
+      "type": ["string", "null"],
+      "pattern": "^S[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "ac_id": {
+      "type": ["string", "null"],
+      "pattern": "^AC[0-9]+(-[a-z0-9-]+)?$"
+    },
+    "cycle_id": {
+      "type": ["string", "null"],
+      "description": "Identifier of the current TDD cycle, e.g. cycle-001."
+    },
+    "experiment_id": {
+      "type": ["string", "null"],
+      "description": "Identifier of the active experiment branch, e.g. exp-1-postgres-arrays."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_transition_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_transition_by": {
+      "type": "string",
+      "description": "Who triggered the most recent phase transition (agent name or HITL email)."
+    }
+  },
+  "additionalProperties": false
+}

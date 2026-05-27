@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://databricks-solutions.github.io/lakebase-app-dev-kit/schemas/story.schema.json",
+  "title": "Story",
+  "description": "A user story within a feature. Connects user motivation to acceptance criteria.",
+  "type": "object",
+  "required": ["id", "asA", "iWantTo", "soThat"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^S[0-9]+(-[a-z0-9-]+)?$",
+      "description": "Story identifier, e.g. S1 or S1-submit-form."
+    },
+    "asA": {
+      "type": "string",
+      "description": "User role or persona."
+    },
+    "iWantTo": {
+      "type": "string",
+      "description": "Capability the user wants."
+    },
+    "soThat": {
+      "type": "string",
+      "description": "Outcome or motivation."
+    },
+    "nfrs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "requirement"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": ["performance", "scalability", "security", "observability", "operability", "resilience"]
+          },
+          "requirement": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "acs": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^AC[0-9]+(-[a-z0-9-]+)?$" },
+      "description": "Acceptance criterion IDs belonging to this story."
+    },
+    "feature_id": {
+      "type": "string",
+      "pattern": "^F[0-9]+(-[a-z0-9-]+)?$",
+      "description": "Parent feature ID."
+    },
+    "external_ref": {
+      "type": "object",
+      "properties": {
+        "adapter": { "type": "string" },
+        "external_id": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

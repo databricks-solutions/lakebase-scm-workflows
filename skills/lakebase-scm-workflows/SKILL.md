@@ -129,7 +129,6 @@ DSN and Pool resolve to the same database via the same OAuth substrate. Never ca
 
 Each operation is a CLI bin invocation that returns JSON on stdout. JS callers can import the same functions from the package.
 
-> Operations land iteratively per the per-operation 4-phase rollout. Tracked in JIRA: FEIP-7058.
 
 - `create-project` – bootstrap a fresh Lakebase-paired project
 - `schema-diff` – parent-aware diff between two Lakebase branches
@@ -138,163 +137,111 @@ Each operation is a CLI bin invocation that returns JSON on stdout. JS callers c
 - `get-endpoint` / `ensure-endpoint` / `get-credential` – branch endpoint + raw token/email
 - `query-branch-schema` / `query-branch-tables` – live pg introspection
 - `get-project-info` – project metadata (uid, display name, state)
-- `create-pull-request` / `get-pull-request` / `merge-pull-request` / `merge-paired-pull-request` – PR flow (FEIP-7076)
+- `create-pull-request` / `get-pull-request` / `merge-pull-request` / `merge-paired-pull-request` – PR flow
 - `get-pull-request-reviews` / `get-pull-request-files` / `get-pull-request-comments` / `list-issue-comments` / `list-workflow-runs` – PR introspection
 
-## branch lifecycle
+## Under the covers
 
-Lakebase branch CRUD. Git-side operations (`git branch`, `git checkout`) are the agent's concern; these scripts handle the paired Lakebase side.
+These sections describe what the substrate does on your behalf. You don't invoke these primitives directly — the agent does, in response to the prompts in [How to use](#how-to-use). The exception is `create-project`, which is a one-shot bootstrap you can also run yourself via the `lakebase-create-project` bin (see the CLI cheat sheet).
 
-```bash
-# Create a paired Lakebase branch – parent resolves from explicit override,
-# then "branch I'm currently on" hint, then project default.
-node scripts/lakebase/branch-create.js \
-  --instance proj-abc --branch feature-auth-rewrite \
-  [--parent staging] [--current main]
-# -> { uid, name, state: "READY", sourceBranchName, isDefault }
+### 1. Create-project
 
-# Delete (accepts uid, sanitized name, or full resource path)
-node scripts/lakebase/branch-delete.js --instance proj-abc --branch feature-auth-rewrite
+End-to-end project bootstrap — the first thing you'll touch. This is the one operation you may also run yourself via the `lakebase-create-project` bin; the agent prompt in [How to use](#how-to-use) flow 1 is the conversational equivalent.
+
+When create-project finishes you get a scaffolded layout shaped like:
+
+```
+~/code/proj-checkout/                      ← local clone (parent dir is your choice)
+  src/                                     ← language-specific scaffold (Java/Kotlin/Python/Node)
+  db/migrations/                           ← Flyway / Alembic migrations land here
+  .env.example                             ← committed; .env never is
+  .githooks/                               ← post-checkout (refresh DSN), prepare-commit-msg (embed schema diff)
+  .github/workflows/
+    pr.yml                                 ← schema diff + tests on every PR
+    merge.yml                              ← migrate parent on merge
+  .tdd/                                    ← lakebase-tdd-workflows scaffold (opt-out via --enable-tdd false)
+  README.md, .gitignore, package.json/pom.xml/pyproject.toml, ...
 ```
 
-**Module API:**
+Eleven steps run in order: GitHub repo creation, repo-visibility wait, clone or git-init, Lakebase project creation, default-branch resolution, language scaffold (Spring Initializr for Java/Kotlin, static templates for Python/Node), CI secrets sync, self-hosted runner setup (or GitHub-hosted), initial commit + push, and a health check. The non-fatal steps (secrets sync, runner setup, hook verification) collect into a warnings list rather than aborting. Hard-fatal errors (GitHub repo creation, Lakebase project creation, git push) abort and roll nothing back — manual cleanup is on you.
 
-```ts
-import {
-  createBranch,
-  waitForBranchReady,
-  deleteBranch,
-} from "@databricks-solutions/lakebase-app-dev-kit";
+### 2. Branch lifecycle
 
-const branch = await createBranch({
-  instance: "proj-abc",
-  branch: "feature-auth-rewrite",   // sanitized to Lakebase id (lowercase, alphanumeric+hyphen, 3-63 chars)
-  parentBranch: "staging",            // optional – overrides "current" hint and default
-  currentBranch: "main",              // optional – git-like "fork from current" semantics
-  timeoutMs: 120_000,                 // default: 2min poll budget
-});
+Once the project exists, every piece of feature work starts by cutting a paired branch. Git-side operations (`git branch`, `git checkout`) stay with you and your IDE; this is the matching Lakebase-side that gives the branch its own database.
 
-await deleteBranch({ instance: "proj-abc", branch: branch.uid });
-```
+**Parent resolution.** When the agent creates a branch, it picks the parent in this order: an explicit override you specified ("branch from prod for this hotfix"), then a "branch I'm currently on" hint (git-like fork semantics), then the project's default branch (usually `production`). The "current branch" hint is ignored if it equals the target.
 
-**Parent resolution precedence** (ported from `LakebaseService.createBranch`):
-1. `parentBranch` arg (explicit override – "branch from prod" / "branch from staging" hotfix)
-2. `currentBranch` arg (git-like "fork from the branch you're on") – skipped if it equals the target
-3. Project default branch (usually `production`)
+**Names.** Whatever you call the branch in conversation gets sanitized to a Lakebase id — lowercase, alphanumeric + hyphens, 3–63 chars. The substrate accepts a uid, the sanitized name, or the full resource path interchangeably when looking the branch up later.
 
-**Idempotency:** `createBranch` returns the existing branch unchanged if one with the same sanitized name already exists. Delete is NOT idempotent – throws when the branch isn't found (caller can catch + ignore for idempotent semantics).
+**Idempotency.** Asking to create a branch that already exists returns the existing one unchanged. Deletion is not idempotent — asking to delete a branch that doesn't exist surfaces an error to you rather than silently succeeding.
 
-## endpoint + credential
+### 3. Endpoint + credential
 
-```bash
-lakebase-get-connection --output dsn --instance proj-abc --branch br-feature
-# -> postgresql://... DSN
+With a branch in hand, the next step is to connect to its database. The agent mints a Lakebase credential for that branch on demand — short-lived OAuth token, scoped to that branch only.
 
-# Just the endpoint metadata (host + state):
-node -e "import('@databricks-solutions/lakebase-app-dev-kit').then(m => m.getEndpoint({instance:'proj-abc', branch:'br-feature'}).then(console.log))"
-# -> { host: 'instance-...', state: 'ACTIVE' } | undefined
+When it needs a DSN string (for `psql`, Flyway, Alembic, etc.) it gets one shaped like `postgresql://...`. When it needs a connection pool from JS/TS code, it gets a `pg.Pool` with auto-refresh built in. When it needs raw endpoint metadata (host + provisioning state), it gets that without touching credentials.
 
-# Just the raw token + email (resolves branch path, then mints via the single seam):
-const { getCredential } = require('@databricks-solutions/lakebase-app-dev-kit');
-const { token, email } = await getCredential({ instance, branch });
-```
+All of this funnels through one substrate helper — the single credential-minting seam — so a CI grep guard can detect any second code path trying to bypass it. You don't need to think about this; it just means there's exactly one place to look when credential issues arise.
 
-## schema introspection
+### 4. Schema introspection
 
-```bash
-# Live table inventory on a branch (queries information_schema via pg):
-node -e "import('@databricks-solutions/lakebase-app-dev-kit').then(m => m.queryBranchSchema({instance:'proj-abc', branch:'br-feature'}).then(r => console.log(JSON.stringify(r, null, 2))))"
-# -> [{ name: 'users', columns: [{ name: 'id', dataType: 'uuid' }, ...] }, ...]
+Once you're connected, you may want to see the current shape of the branch. The agent queries `information_schema` over the branch's DSN and returns the live tables and columns.
 
-# Just table names:
-const { queryBranchTables } = require('@databricks-solutions/lakebase-app-dev-kit');
-const tables = await queryBranchTables({ instance, branch });
-```
+Skips `flyway_schema_history` by default — that table is migration metadata, not schema content. Returns an empty list when the branch is still provisioning (the endpoint has no host yet); the agent polls until it's ready.
 
-Skips `flyway_schema_history` by default. Returns `[]` when the endpoint has no host yet (branch still provisioning) – caller can poll.
+### 5. Schema-diff
 
-## create-project
+When you're ready to share work, the agent compares your branch against its parent — the branch's `sourceBranchId` in Lakebase metadata — so a feature branch forked from `staging` diffs against `staging`, not against `production`. When the source can't be resolved, falls back to the project's default branch.
 
-End-to-end project bootstrap: GitHub repo creation, Lakebase database creation, language-specific scaffolding (Spring Initializr for Java/Kotlin; static templates for Python/Node.js), git hooks, CI workflows, secrets sync, self-hosted runner registration, and the initial commit-and-push.
+The diff comes back as a structured summary: tables added / removed / modified, columns added / removed / type-changed, and an `inSync` boolean for the whole branch. You'd ask: "show me the diff" or "what changed since I forked." The `prepare-commit-msg` hook calls this automatically on a feature branch's first commit so the diff lands in the PR body for review.
 
-```bash
-lakebase-create-project \
-  --project-name my-app \
-  --parent-dir ~/code \
-  --databricks-host https://workspace.cloud.databricks.com \
-  --github-owner databricks-solutions \
-  --language java \
-  --runner self-hosted
-# -> JSON on stdout: { projectDir, githubRepoUrl, lakebaseProjectId, lakebaseDefaultBranch, warnings }
+## How to use
 
-# Local-only (no GitHub side effects):
-lakebase-create-project \
-  --project-name my-app \
-  --parent-dir ~/code \
-  --databricks-host https://workspace.cloud.databricks.com \
-  --no-github
-```
+Four flows — shown as what you'd prompt your agent to do, using a running cart-checkout example (a project called `proj-checkout`, branch `feature-add-orders`). The bins listed in the CLI cheat sheet are also valid direct entry points; the prompts here are how you'd ask without remembering flags.
 
-**Inputs:**
+### 1. Bootstrap a new Lakebase-paired project
 
-| Flag | Default | Notes |
-|---|---|---|
-| `--project-name` | required | Local dir + Lakebase project id (lowercase alphanumeric + hyphens) |
-| `--parent-dir` | required | Where the project folder lands |
-| `--databricks-host` | required | Workspace URL |
-| `--github-owner` | required unless `--no-github` | User or org |
-| `--no-github` | off | Local-only mode (skips GitHub + runner) |
-| `--public` | off | Make the GH repo public (default: private) |
-| `--language` | `java` | `java` / `kotlin` / `python` / `nodejs` |
-| `--runner` | `self-hosted` | `self-hosted` / `github-hosted` |
+> "Create a new Lakebase-paired project called `proj-checkout` for the checkout flow. Use Java, a self-hosted runner, my GitHub org `my-org`, and the Databricks workspace at `https://<workspace>.cloud.databricks.com`."
 
-**Behavior:**
+The agent runs `lakebase-create-project` under the hood. When it returns you have a GitHub repo at `my-org/proj-checkout`, a Lakebase project with `production` as the default branch, a local clone with the language scaffold, `.github/workflows/{pr,merge}.yml`, `.githooks/` (post-checkout + prepare-commit-msg), `.env.example`, and `.tdd/` (the TDD workflow scaffold). Initial commit pushed, CI auth secrets synced, runner registered.
 
-11-step orchestration. Non-fatal failures (CI secrets sync, runner setup, hook/workflow verification) land in the `warnings[]` array. The function only throws on hard-fatal errors (input validation, GitHub repo creation, Lakebase project creation, git operations, push rejection on workflow scope).
+Add "skip the .tdd scaffold" to the prompt to opt out for projects that won't use `lakebase-tdd-workflows`.
 
-For the BDD harness, pass a single `--json-input '{"projectName": ..., ...}'` arg – same JSON shape that the extension's ProjectCreationService accepts so both call sites can drive identical scenarios.
+### 2. Cut a feature branch and inspect schema-diff against the parent
 
-## schema-diff
+> "Cut a Lakebase feature branch off `staging` called `feature-add-orders`, switch git to it, apply the new migration at `db/migrations/V003__add_orders.sql`, and show me the schema diff against staging."
 
-Parent-aware schema diff between two Lakebase branches. Compares the target branch against its parent (the branch's `sourceBranchId` in Lakebase metadata) – for a feature forked from staging, that means diff vs staging, not vs production. Falls back to the project's default branch when the source can't be resolved.
+The agent cuts the paired Lakebase branch, runs `git checkout -b feature-add-orders` (the post-checkout hook refreshes `.env`), pipes the migration through `lakebase-get-connection --output dsn`, and prints the diff from `lakebase-schema-diff`. The diff is JSON: tables added/removed/modified, columns added/removed/changed, an `inSync` boolean.
 
-```bash
-lakebase-schema-diff --instance <project-id> --branch <branch-id>
-# -> SchemaDiffResult JSON
+### 3. Open a PR with the schema-diff embedded in the body
 
-# Pin the comparison explicitly:
-lakebase-schema-diff --instance proj-abc --branch br-feature --against br-staging --pretty
-```
+> "Open a PR from `feature-add-orders` to `staging` for `my-org/proj-checkout` titled 'Add orders table'. Include the schema diff in the body."
 
-**Output shape** (matches the extension's modal data contract):
+In most cases you don't even need to ask — the `prepare-commit-msg` hook (installed by `create-project`) already writes the schema diff into the first commit on a feature branch, so `gh pr create` or the GitHub UI picks it up automatically. The prompt above is for when you want the agent to do it programmatically (catching drift between PR-open and PR-merge by re-running the diff is the job of CI's `pr.yml`).
 
-```json
-{
-  "branchName": "br-feature",
-  "comparisonBranchName": "br-staging",
-  "timestamp": "2026-05-22T...",
-  "migrations": [],
-  "created": [{ "type": "TABLE", "name": "...", "columns": [...] }],
-  "modified": [
-    { "type": "TABLE", "name": "...",
-      "columns": [...], "addedColumns": [...], "removedColumns": [...],
-      "prodColumns": [...] }
-  ],
-  "removed": [...],
-  "branchTables": [...],
-  "inSync": false
-}
-```
+### 4. Recover when a checkout left the DSN pointing at the wrong branch
 
-`migrations` is always empty in the script output – it's a workspace-file concern, not a Lakebase-side one. The extension layer fills it in locally when rendering. `prodColumns` is named for legacy modal compatibility; it carries the parent (comparison) columns regardless of whether the comparison target is production.
+Happens when the post-checkout hook is missing, disabled, or you switched branches outside git (e.g. via an IDE that skipped hooks). The DSN in `.env` still points at the previous branch.
+
+> "My `.env` DSN looks stale — refresh it to point at the Lakebase branch matching the git branch I'm currently on."
+
+The agent reads the current git branch, calls `lakebase-get-connection --output dsn --write-env` for that branch, and confirms the new `DATABASE_URL`. If you hit this often, ask: "Reinstall the git hooks" — that runs `bash .githooks/install.sh`.
+
+### CLI cheat sheet
+
+| Bin | Purpose |
+|---|---|
+| `lakebase-create-project` | End-to-end Lakebase + GitHub project bootstrap (see flow 1). |
+| `lakebase-get-connection` | Mint a DSN string (`--output dsn`) or pg.Pool (`--output pool`) against any branch. Add `--write-env` to refresh `.env`. |
+| `lakebase-schema-diff` | Parent-aware schema diff between any branch and its parent (or a comparison override). |
+| `lakebase-github-token` | Resolve the GitHub token via the same auth chain CI uses. Useful for debugging permission issues. |
+| `lakebase-migrate` | Apply / rollback / status / list schema migrations against a branch. |
+| `lakebase-mcp-server` | Stdio MCP server exposing every script as an MCP tool — for Claude Desktop / OpenAI Codex consumers. |
 
 ## Composition
 
-- **TDD on Lakebase-paired projects**: a sibling TDD skill is planned in `skills/` (FEIP-7066; name TBD). This umbrella does not duplicate test-first methodology.
+- **TDD on Lakebase-paired projects**: paired with [`lakebase-tdd-workflows`](../lakebase-tdd-workflows/SKILL.md). This skill owns branch + schema + PR plumbing; TDD-workflows layers experiment / cycle / synthesis on top.
 - **Inside VS Code/Cursor**: the [`lakebase-scm-extension`](https://github.com/databricks-solutions/lakebase-scm-extension) consumes the same substrate via npm dep – same operations, different presentation layer.
 
 ## See also
 
-- Reference proposal: `feip-lakebase-scm-workflows.md`
-- Full operation mapping: `lakebase-scm-workflows-mapping.md`
-- Epic: FEIP-7058

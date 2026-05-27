@@ -5,8 +5,11 @@ Lakebase-backed application development kit. The shared foundation that the [`la
 **Workflow domains** (kit-authored, one skill each, hosted under `skills/`):
 - **[`lakebase-scm-workflows`](skills/lakebase-scm-workflows/SKILL.md)** – paired-branch source control, schema diff, PR flow, runner setup.
 - **[`lakebase-release-workflows`](skills/lakebase-release-workflows/SKILL.md)** – branching + release methodology for Lakebase-paired projects.
-- **`lakebase-tdd-workflows`** – test-driven development against paired branches. (Coming – FEIP-7066.)
+- **[`lakebase-tdd-workflows`](skills/lakebase-tdd-workflows/SKILL.md)** – test-driven development against paired branches: portable spec format, experiment / spike primitives, design-spec gate, single-experiment cycle wrapper, synthesis + bad-smell detection, Scrum-Master orchestrator with HITL gates at every phase boundary.
 - Future domains include deploying to Databricks Apps and beyond.
+
+**Shared canon** (kit-authored, unprefixed because not Lakebase-specific):
+- **[`software-design-principles`](skills/software-design-principles/SKILL.md)** – SOLID, DRY, DTSTTCPW, clean code, layered architecture, cross-cutting concerns, NFRs. Imported by the workflow domain skills.
 
 **Vendored upstream skills** (also under `skills/`, synced from [`databricks/devhub`](https://github.com/databricks/devhub/tree/main/.agents/skills)):
 - **[`databricks-core`](https://github.com/databricks/devhub/blob/main/.agents/skills/databricks-core/SKILL.md)** – CLI basics, authentication, profile selection. Parent skill referenced by `databricks-lakebase`.
