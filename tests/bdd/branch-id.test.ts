@@ -101,22 +101,22 @@ describe("type-level brand contracts", () => {
     const name: BranchName = asBranchName("production");
     const uid: BranchUid = asBranchUid("br-x-y-z");
 
-    // Allow assignment to the broader `string` type — brands are downcast-able.
+    // Allow assignment to the broader `string` type – brands are downcast-able.
     const _s1: string = name;
     const _s2: string = uid;
     expect(_s1).toBe("production");
     expect(_s2).toBe("br-x-y-z");
 
-    // @ts-expect-error — BranchName is not assignable to BranchUid.
+    // @ts-expect-error – BranchName is not assignable to BranchUid.
     const _bad1: BranchUid = name;
     void _bad1;
-    // @ts-expect-error — BranchUid is not assignable to BranchName.
+    // @ts-expect-error – BranchUid is not assignable to BranchName.
     const _bad2: BranchName = uid;
     void _bad2;
-    // @ts-expect-error — plain string is not assignable to BranchName.
+    // @ts-expect-error – plain string is not assignable to BranchName.
     const _bad3: BranchName = "production";
     void _bad3;
-    // @ts-expect-error — plain string is not assignable to BranchUid.
+    // @ts-expect-error – plain string is not assignable to BranchUid.
     const _bad4: BranchUid = "br-x-y-z";
     void _bad4;
   });

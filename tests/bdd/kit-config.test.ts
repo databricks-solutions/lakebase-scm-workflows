@@ -13,7 +13,7 @@ import {
 // Env-override coverage: KIT_TIMEOUTS is read once at module load.
 // Verifying the env-override mechanic itself requires loading the
 // module fresh with new env, which isn't worth the vitest gymnastics
-// here — the override path is straightforward (intFromEnv falls back
+// here – the override path is straightforward (intFromEnv falls back
 // to the default on parse failure / non-positive value), so we cover
 // the documented defaults + the field surface only.
 
@@ -116,7 +116,7 @@ describe("KIT_REGISTRIES – package-registry URLs", () => {
   });
 
   it("trailing slashes stripped so callers can safely concat `/path`", () => {
-    // The urlFromEnv helper trims trailing slashes — verify the defaults
+    // The urlFromEnv helper trims trailing slashes – verify the defaults
     // are already in trimmed form (a regression here would mean callers
     // get `//path` after concatenation).
     expect(KIT_REGISTRIES.mavenCentral.endsWith("/")).toBe(false);

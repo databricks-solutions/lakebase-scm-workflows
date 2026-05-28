@@ -8,13 +8,13 @@ import { deleteLakebaseProject } from "../../scripts/lakebase/lakebase-project.j
 
 /**
  * Resolve the destructive test's target host. Precedence:
- *   1. `LAKEBASE_TEST_HOST` — explicit override (e.g. for CI where the
+ *   1. `LAKEBASE_TEST_HOST` – explicit override (e.g. for CI where the
  *      profile mechanism isn't available).
- *   2. `DATABRICKS_CONFIG_PROFILE` — runs `databricks auth env --profile`
+ *   2. `DATABRICKS_CONFIG_PROFILE` – runs `databricks auth env --profile`
  *      and reads back DATABRICKS_HOST. Matches the substrate's existing
  *      profile-aware behavior so contributors who already have a working
  *      profile don't need to also set LAKEBASE_TEST_HOST.
- *   3. null — caller should skip the test.
+ *   3. null – caller should skip the test.
  *
  * NB: previously this fell back to a hardcoded `workspace.cloud.databricks.com`
  * placeholder, which DNS-failed in every run. That fallback masked the
@@ -116,7 +116,7 @@ describe.skipIf(!e2eReady)("createProject – live end-to-end (LAKEBASE_TEST_E2E
 
   it("creates a Lakebase-paired local-only project end-to-end", async () => {
     const parent = mkTmp();
-    // e2eHost is guaranteed non-null here — describe.skipIf gates on it.
+    // e2eHost is guaranteed non-null here – describe.skipIf gates on it.
     const host = e2eHost!;
     const projectName = `lbscm-test-${Date.now()}`;
     // Pre-register so afterEach tears it down even on assertion failure.
@@ -143,7 +143,7 @@ describe.skipIf(!e2eReady)("createProject – live end-to-end (LAKEBASE_TEST_E2E
     expect(fs.existsSync(path.join(result.projectDir, ".env"))).toBe(true);
     expect(fs.existsSync(path.join(result.projectDir, "pyproject.toml"))).toBe(true);
 
-    // The seeded .env contains the non-secret context only — the project id +
+    // The seeded .env contains the non-secret context only – the project id +
     // workspace host. Secret fields stay empty/absent until the post-checkout
     // hook fills them on first branch switch.
     const seededEnv = fs.readFileSync(path.join(result.projectDir, ".env"), "utf-8");
@@ -166,7 +166,7 @@ describe("createProject – skip-when-e2e-disabled", () => {
     if (!liveE2E || e2eHost) return;
     // eslint-disable-next-line no-console
     console.log(
-      "LAKEBASE_TEST_E2E=1 but no test host resolvable — set LAKEBASE_TEST_HOST explicitly " +
+      "LAKEBASE_TEST_E2E=1 but no test host resolvable – set LAKEBASE_TEST_HOST explicitly " +
         "or DATABRICKS_CONFIG_PROFILE (the test will run `databricks auth env --profile` to derive the host)."
     );
     expect(e2eHost).toBeNull();

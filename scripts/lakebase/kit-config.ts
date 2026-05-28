@@ -51,7 +51,7 @@ export interface KitTimeouts {
   // The four short-lived tier flavors (feature/test/uat/perf) each have
   // a documented default expiry. Workspaces with a tighter
   // maximum-expiration policy can lower these via the matching env var
-  // — substrate will format `<seconds>s` for the Lakebase API at the
+  // – substrate will format `<seconds>s` for the Lakebase API at the
   // call site. The defaults below match the PSA convention:
   //   feature: 30d, test: 14d, uat: 14d, perf: 7d
   /** Default TTL for feature-tier branches (createFeatureBranch / cutExperiment). */
@@ -111,7 +111,7 @@ export function formatLakebaseTtl(ms: number): string {
 // dev-environment provisioning. Each defaults to the mainline registry;
 // override via the matching env var when running against a proxied or
 // air-gapped environment (e.g. Databricks-internal proxies for Maven
-// Central / npm / PyPI — see internal docs for the setup).
+// Central / npm / PyPI – see internal docs for the setup).
 
 export interface KitRegistries {
   /**

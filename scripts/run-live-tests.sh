@@ -139,7 +139,7 @@ if [[ "$MODE" == "migrate" || "$MODE" == "all" ]]; then
     ZIP="$REPO_ROOT/.tools-live-tests/flyway-commandline-$FLYWAY_VERSION.zip"
     # Maven Central base URL. Override via LAKEBASE_KIT_REGISTRY_MAVEN_CENTRAL
     # when running against a proxied / air-gapped env (e.g. Databricks-internal
-    # Maven proxy — see the internal package-registry proxy setup doc).
+    # Maven proxy – see the internal package-registry proxy setup doc).
     MAVEN_CENTRAL="${LAKEBASE_KIT_REGISTRY_MAVEN_CENTRAL:-https://repo1.maven.org/maven2}"
     URL="${MAVEN_CENTRAL%/}/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip"
     if [[ ! -f "$ZIP" ]]; then

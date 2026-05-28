@@ -133,23 +133,23 @@ function recommend(rows: ExperimentRow[]): { recommendation: ComparisonReport["r
   if (winners.length === 1 && running.length === 0) {
     return {
       recommendation: "promote",
-      rationale: `1 winning experiment, no others still running — promote ${winners[0].experiment_slug}.`,
+      rationale: `1 winning experiment, no others still running – promote ${winners[0].experiment_slug}.`,
     };
   }
   if (winners.length >= 2) {
     return {
       recommendation: "synthesize",
-      rationale: `${winners.length} winning experiments — Product Owner menu-picks; spec gets renegotiated.`,
+      rationale: `${winners.length} winning experiments – Product Owner menu-picks; spec gets renegotiated.`,
     };
   }
   if (winners.length === 0 && running.length === 0 && stalled.length === rows.length && rows.length > 0) {
     return {
       recommendation: "abandon-all",
-      rationale: `All ${rows.length} experiments stalled — re-run design-spec gate.`,
+      rationale: `All ${rows.length} experiments stalled – re-run design-spec gate.`,
     };
   }
   return {
     recommendation: "continue",
-    rationale: `${winners.length} winning, ${running.length} running, ${stalled.length} stalled — let cycles finish or HITL intervene.`,
+    rationale: `${winners.length} winning, ${running.length} running, ${stalled.length} stalled – let cycles finish or HITL intervene.`,
   };
 }

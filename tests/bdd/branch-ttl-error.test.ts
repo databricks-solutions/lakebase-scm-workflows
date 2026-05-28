@@ -11,7 +11,7 @@ import {
 // underlying CLI error and rewraps with a typed, actionable message so
 // callers get a clear remediation path (shorter ttl OR noExpiry).
 
-describe("isTtlTooLongError — detects the workspace cap rejection", () => {
+describe("isTtlTooLongError – detects the workspace cap rejection", () => {
   const REAL_STDERR =
     "databricks postgres create-branch projects/x foo --json {} failed: Command failed: " +
     "databricks postgres create-branch projects/x foo --json {}\n" +
@@ -34,7 +34,7 @@ describe("isTtlTooLongError — detects the workspace cap rejection", () => {
   });
 });
 
-describe("LakebaseBranchTtlTooLongError — typed error contract", () => {
+describe("LakebaseBranchTtlTooLongError – typed error contract", () => {
   it("extends LakebaseBranchError so existing catch blocks still trigger", () => {
     const err = new LakebaseBranchTtlTooLongError("2592000s", "underlying CLI error");
     expect(err).toBeInstanceOf(LakebaseBranchError);

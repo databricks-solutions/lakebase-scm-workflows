@@ -11,7 +11,7 @@ import {
 //
 //   1. The values match the documented Lakebase defaults today. A
 //      deliberate future change (e.g. service moves off 5432) is fine
-//      — bump the literal here and the substrate everywhere flips
+//      – bump the literal here and the substrate everywhere flips
 //      together.
 //   2. The shape stays stable: `POSTGRES_PORT` is a number, the two
 //      string defaults are non-empty.

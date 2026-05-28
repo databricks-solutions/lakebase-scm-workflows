@@ -1,5 +1,5 @@
 /**
- * Branch convention helpers — `createFeatureBranch / createTestBranch /
+ * Branch convention helpers – `createFeatureBranch / createTestBranch /
  * createUatBranch / createPerfBranch`.
  *
  * The PSA branching methodology (see
@@ -12,7 +12,7 @@
  *                  ├── uat       (user acceptance)
  *                  └── perf      (performance / load)
  *
- * Each is finite-lifetime — tied to a specific dev cycle, not a permanent
+ * Each is finite-lifetime – tied to a specific dev cycle, not a permanent
  * tier. So unlike `createLongRunningBranch` (which sets `no_expiry: true`
  * for the prod/staging tiers), these helpers default to a Lakebase TTL.
  *
@@ -64,7 +64,7 @@ export interface CreateConventionBranchArgs extends BranchLookupOpts {
    * Forwarded to createBranch. When the convention's default parent (e.g.
    * "staging") doesn't exist on the project, the substrate falls back to
    * the project default branch with a stderr warning. Set strictParent:
-   * true to throw instead — useful for hotfix-from-production paths where
+   * true to throw instead – useful for hotfix-from-production paths where
    * the lineage MUST match the convention.
    */
   strictParent?: boolean;
@@ -72,7 +72,7 @@ export interface CreateConventionBranchArgs extends BranchLookupOpts {
 
 /**
  * Cut a feature-tier Lakebase branch off `staging` with a 30-day TTL.
- * Lakebase deletes the branch automatically when the TTL expires — useful
+ * Lakebase deletes the branch automatically when the TTL expires – useful
  * for feature dev cycles where the branch lives only as long as the work.
  */
 export async function createFeatureBranch(

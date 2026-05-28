@@ -33,7 +33,7 @@ export interface ExperimentOutcomes {
   // authoritative totals; `by_tag` is a breakdown for downstream renderers
   // (comparison report, feature-status) and the per-tag smell detectors
   // (e.g. e2e-row-perma-red in FEIP-7094). Sum across tags is not enforced
-  // to match the totals — mid-cycle reporting and untagged tests are valid.
+  // to match the totals – mid-cycle reporting and untagged tests are valid.
   by_tag?: Partial<Record<ExperimentTag, TagOutcome>>;
 }
 

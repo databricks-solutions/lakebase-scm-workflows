@@ -37,7 +37,7 @@ export interface CreateBranchArgs extends BranchLookupOpts {
    * "fork from production" hotfix scenarios.
    *
    * Must be a BranchName (the resource-path leaf, e.g. `production`,
-   * `staging`, `feature-x`) — NOT a BranchUid (`br-…`) and NOT a full
+   * `staging`, `feature-x`) – NOT a BranchUid (`br-…`) and NOT a full
    * resource path. The runtime guard inside createBranch will reject a
    * BranchUid-shaped value with a helpful error. Use `asBranchName(s)`
    * at the call site if you have a string of unknown provenance.
@@ -68,19 +68,19 @@ export interface CreateBranchArgs extends BranchLookupOpts {
    * set, Lakebase auto-deletes the branch after this duration relative to
    * create_time. Use for finite-lifetime workflow tiers (feature / test /
    * uat / perf). Mutually exclusive with `noExpiry: true`. Format is the
-   * protobuf Duration JSON encoding — bare seconds with trailing "s".
+   * protobuf Duration JSON encoding – bare seconds with trailing "s".
    */
   ttl?: string;
   /**
    * Strictness for parentBranch lookup. When `parentBranch` is set but the
    * named branch does not exist on the project, the substrate's default is
-   * to FALL BACK to the project's default branch with a stderr warning —
+   * to FALL BACK to the project's default branch with a stderr warning –
    * which keeps the convention-tier defaults
    * (CONVENTION_TIER_DEFAULTS.feature.parentBranch="staging", etc.)
    * usable on projects that don't yet follow the PSA topology.
    *
    * Pass `strictParent: true` to opt OUT of the fallback and throw a
-   * typed LakebaseBranchError when the named parent is missing — useful
+   * typed LakebaseBranchError when the named parent is missing – useful
    * for hotfix-from-production paths where the lineage MUST match the
    * caller's expectation. Default: false (fallback enabled).
    */
@@ -114,7 +114,7 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
       throw new LakebaseBranchError(
         `parentBranch '${args.parentBranch}' looks like a BranchUid (br-… pattern), ` +
           `not a BranchName. Pass the resource-path leaf (e.g. 'production', 'staging', ` +
-          `'feature-add-orders') — the Lakebase API rejects uids in source_branch fields. ` +
+          `'feature-add-orders') – the Lakebase API rejects uids in source_branch fields. ` +
           `If you have a uid and need to resolve it to its name, call resolveBranchId() ` +
           `from branch-utils first.`
       );
@@ -193,7 +193,7 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
   if (args.ttl && args.noExpiry === true) {
     throw new LakebaseBranchError(
       `Cannot set both ttl ("${args.ttl}") and noExpiry: true on the same ` +
-        `branch — they are mutually exclusive. Pass one or the other.`,
+        `branch – they are mutually exclusive. Pass one or the other.`,
     );
   }
   const specObj: { source_branch: string; no_expiry?: boolean; ttl?: string } = {

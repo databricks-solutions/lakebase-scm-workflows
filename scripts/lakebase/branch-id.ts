@@ -3,12 +3,12 @@
 // A Lakebase branch has TWO distinct identifiers and they are NOT
 // interchangeable in the API:
 //
-//   BranchName  — the human-readable leaf of the resource path
+//   BranchName  – the human-readable leaf of the resource path
 //                 (`production`, `staging`, `feature-add-orders`). Used in
 //                 EVERY API field that takes a branch path or source_branch
 //                 reference. The leaf of `projects/<id>/branches/<NAME>`.
 //
-//   BranchUid   — the system-assigned alphanumeric identifier
+//   BranchUid   – the system-assigned alphanumeric identifier
 //                 (`br-crimson-fire-d28lb2ez`). Returned by `list-branches`
 //                 as the `uid` field. Used only for direct uid lookups in
 //                 the few flows that need them.
@@ -47,7 +47,7 @@ const UID_PATTERN = /^br-[a-z0-9-]+$/;
 
 /**
  * Structural check: does `s` match the BranchUid pattern (`br-…`)? Does
- * NOT prove the uid actually exists — just that the shape matches.
+ * NOT prove the uid actually exists – just that the shape matches.
  */
 export function looksLikeBranchUid(s: string): boolean {
   return UID_PATTERN.test(s);
@@ -55,7 +55,7 @@ export function looksLikeBranchUid(s: string): boolean {
 
 /**
  * Wrap `s` as a BranchName, throwing if `s` looks like a BranchUid
- * (which is almost certainly a programmer error — the API will reject it
+ * (which is almost certainly a programmer error – the API will reject it
  * in path-shaped fields). Use at every kit boundary that receives a
  * branch identifier from outside.
  *
@@ -69,7 +69,7 @@ export function asBranchName(s: string): BranchName {
         `BranchName is the resource-path leaf (e.g. 'production', 'staging', 'feature-add-orders'); ` +
         `BranchUid is the system identifier returned by list-branches as the 'uid' field. ` +
         `The Lakebase API rejects a BranchUid in any path-shaped field. If you really mean a ` +
-        `BranchUid, use asBranchUid() instead — but verify you're calling a function that takes one.`
+        `BranchUid, use asBranchUid() instead – but verify you're calling a function that takes one.`
     );
   }
   return s as BranchName;

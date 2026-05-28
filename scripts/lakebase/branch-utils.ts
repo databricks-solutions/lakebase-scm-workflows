@@ -65,7 +65,7 @@ export interface LakebaseBranchInfo {
   /**
    * Lakebase-side opaque uid, e.g. `br-broad-sky-d2k5gewt`. Returned by
    * `get-branch` / `list-branches` as the `uid` field. NOT accepted in
-   * any path-shaped API field — the service rejects it with "branch id
+   * any path-shaped API field – the service rejects it with "branch id
    * not found". For source_branch references, `{branch}` URL segments,
    * .env LAKEBASE_BRANCH_NAME, etc., use {@link nameLeaf} instead.
    *
@@ -93,7 +93,7 @@ export interface LakebaseBranchInfo {
    * Use {@link sourceBranchId} for just the leaf segment (a {@link BranchName}).
    */
   sourceBranchName?: string;
-  /** Parent branch leaf — a {@link BranchName} like `staging`. Derived from sourceBranchName. */
+  /** Parent branch leaf – a {@link BranchName} like `staging`. Derived from sourceBranchName. */
   sourceBranchId?: BranchName;
   /** True if this is the project's default branch. */
   isDefault?: boolean;
@@ -188,7 +188,7 @@ export async function resolveBranchPath(
  *
  * Throws when the branch can't be resolved (e.g. uid points at nothing).
  * Fast-path: returns input unchanged for values that don't look like a uid
- * (no `br-` prefix) and don't include a path prefix — avoids a round-trip
+ * (no `br-` prefix) and don't include a path prefix – avoids a round-trip
  * for the common branch_id case.
  */
 export async function resolveBranchId(
@@ -254,7 +254,7 @@ function parseBranch(raw: unknown): LakebaseBranchInfo | undefined {
   if (!name) return undefined;
 
   // BranchName: always the leaf of the resource path. NEVER fall back to
-  // the uid here — a uid in a path-shaped field is exactly the bug this
+  // the uid here – a uid in a path-shaped field is exactly the bug this
   // brand exists to prevent.
   const nameLeaf = branchNameFromResourcePath(name);
   if (!nameLeaf) return undefined;

@@ -1,4 +1,4 @@
-// Shared substrate constants — single source of truth for repeated literals.
+// Shared substrate constants – single source of truth for repeated literals.
 //
 // These are deliberate defaults that the Lakebase service + the kit's
 // documented conventions converge on. They're "hardcoded" in the sense

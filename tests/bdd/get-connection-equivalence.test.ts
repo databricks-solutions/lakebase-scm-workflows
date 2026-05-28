@@ -54,7 +54,7 @@ describe.skipIf(skip)("get-connection – DSN and Pool resolve to the same datab
     expect(dsnRow.host).toBeTruthy();
     // User identity must match – both paths use the operator principal
     expect(poolRow.user).toBe(dsnRow.user);
-  }, 30000); // Two live pg connects + credential mints — ~5-8s end-to-end under
+  }, 30000); // Two live pg connects + credential mints – ~5-8s end-to-end under
   // parallel-suite load. Bump from the 5s default; runs <1s on a warm endpoint.
 });
 

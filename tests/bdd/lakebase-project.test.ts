@@ -75,7 +75,7 @@ describe("findDefaultBranchName – returns BranchName, never BranchUid", () => 
   it("returns the resource-path leaf (the BranchName), not the uid", () => {
     const result = findDefaultBranchName(SAMPLE);
     expect(result).toBe("production");
-    // The bug would have returned 'br-crimson-fire-d28lb2ez' here — that's
+    // The bug would have returned 'br-crimson-fire-d28lb2ez' here – that's
     // the exact regression this test guards.
     expect(result).not.toBe("br-crimson-fire-d28lb2ez");
   });

@@ -76,9 +76,9 @@ export async function deleteLakebaseProject(args: LakebaseProjectArgs): Promise<
  * (the resource-path leaf, e.g. `production`), NOT its {@link BranchUid}.
  *
  * Why this returns BranchName specifically: every API field that takes a
- * branch reference — `source_branch` in create-branch specs, the
+ * branch reference – `source_branch` in create-branch specs, the
  * `{branch}` segment in `branches/{x}/endpoints/...` URLs, .env
- * LAKEBASE_BRANCH_NAME — wants the path leaf, not the uid. Returning a
+ * LAKEBASE_BRANCH_NAME – wants the path leaf, not the uid. Returning a
  * uid here (the prior contract under the misleading name
  * `getDefaultBranchId`) caused a "branch id not found" error from the
  * service when the value was substituted into source_branch.

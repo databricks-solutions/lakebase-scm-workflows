@@ -2,7 +2,7 @@
 //
 // Surfaced during the FEIP-7092 live exercise: CONVENTION_TIER_DEFAULTS
 // declares parentBranch="staging" for the four short-tier flavors, but
-// bare-provisioned Lakebase projects ship with only `production` — no
+// bare-provisioned Lakebase projects ship with only `production` – no
 // `staging`. The substrate previously interpolated the named parent into
 // the source_branch path and let the API return the opaque
 // "branch id not found" error. Now: when the named parent doesn't exist,
@@ -13,7 +13,7 @@
 // helpers from branch-utils so createBranch is exercised end-to-end
 // without invoking the Databricks CLI. Tests that take the success path
 // have the target lookup return an EXISTING branch whose source matches
-// the resolved parent — createBranch then short-circuits via its
+// the resolved parent – createBranch then short-circuits via its
 // idempotency check (line ~128 of branch-create.ts), so dbcli is never
 // reached.
 
@@ -76,7 +76,7 @@ describe("createBranch – parentBranch fallback when the named parent is missin
   it("falls back to the project default + emits a stderr warning (default behavior)", async () => {
     // Parent lookup: 'staging' doesn't exist.
     // Target lookup: 'feature-x' already exists, forked from 'production'
-    //   (the project default) — short-circuits via idempotency, no CLI call.
+    //   (the project default) – short-circuits via idempotency, no CLI call.
     mockGetBranchByName.mockImplementation((branchName: string) => {
       if (branchName === "staging") return Promise.resolve(undefined);
       if (branchName === "feature-x") return Promise.resolve(fakeBranch("feature-x", "production"));
@@ -91,13 +91,13 @@ describe("createBranch – parentBranch fallback when the named parent is missin
       // strictParent omitted → default fallback behavior
     });
 
-    // The fallback fired — stderr has the documented warning.
+    // The fallback fired – stderr has the documented warning.
     const stderr = stderrChunks.join("");
     expect(stderr).toMatch(/parentBranch 'staging' not found/);
     expect(stderr).toMatch(/falling back to default branch 'production'/);
     expect(stderr).toMatch(/strictParent: true/);
 
-    // Idempotency short-circuit returned the existing branch — proves the
+    // Idempotency short-circuit returned the existing branch – proves the
     // resolved source ('production') matched what the target was forked from.
     expect(result.name).toBe("projects/test-project/branches/feature-x");
     expect(result.sourceBranchName).toBe("projects/test-project/branches/production");
@@ -148,7 +148,7 @@ describe("createBranch – parentBranch fallback when the named parent is missin
 
     // No fallback warning emitted in strict mode.
     expect(stderrChunks.join("")).toBe("");
-    // getDefaultBranch was NOT consulted — strict mode refuses at the
+    // getDefaultBranch was NOT consulted – strict mode refuses at the
     // boundary before reaching the fallback path.
     expect(mockGetDefaultBranch).not.toHaveBeenCalled();
   });
@@ -162,7 +162,7 @@ describe("createBranch – parentBranch fallback when the named parent is missin
         instance: "test-project",
         branch: "feature-x",
         parentBranch: "staging",
-        // strictParent omitted — fallback is enabled, but nothing to fall back to
+        // strictParent omitted – fallback is enabled, but nothing to fall back to
       })
     ).rejects.toThrow(/has no default branch to fall back to/);
   });

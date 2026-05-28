@@ -177,7 +177,7 @@ else
   yellow "==> About to create a fresh Lakebase project"
   yellow "    workspace:  $DATABRICKS_HOST"
   yellow "    project:    $PROJECT_ID  (NEW)"
-  yellow "    teardown:   $( [[ $TEARDOWN_ON_GREEN == 1 ]] && echo 'on green run' || echo 'DISABLED — manual cleanup required at end' )"
+  yellow "    teardown:   $( [[ $TEARDOWN_ON_GREEN == 1 ]] && echo 'on green run' || echo 'DISABLED – manual cleanup required at end' )"
   yellow ""
   if [[ "$NO_PROMPT" != "1" ]]; then
     yellow "    Press Ctrl-C in the next ${GRACE_SECONDS} seconds to abort. Pass --no-prompt to skip in CI, or --grace-seconds to tune."
@@ -189,7 +189,7 @@ else
   green "  created: $PROJECT_ID"
 fi
 
-# Resolve the default branch name (leaf of name, never uid — see
+# Resolve the default branch name (leaf of name, never uid – see
 # scripts/lakebase/branch-id.ts for the rationale).
 DEFAULT_BRANCH="$(databricks postgres list-branches "projects/$PROJECT_ID" --profile "$PROFILE" -o json 2>&1 | python3 -c "
 import json, sys
@@ -231,7 +231,7 @@ export LAKEBASE_TEST_COMPARISON_BRANCH="${LAKEBASE_TEST_COMPARISON_BRANCH:-$BRAN
 # LAKEBASE_TEST_DATABASE: explicit --database flag wins; otherwise leave
 # whatever the caller's env already has (which may itself be unset).
 # When unset, the substrate falls back to DEFAULT_DATABASE
-# (scripts/lakebase/constants.ts) — single source of truth, no duplication.
+# (scripts/lakebase/constants.ts) – single source of truth, no duplication.
 if [[ -n "$DATABASE" ]]; then
   export LAKEBASE_TEST_DATABASE="$DATABASE"
 fi

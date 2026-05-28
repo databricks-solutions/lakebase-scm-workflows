@@ -122,7 +122,7 @@ describe("branch identifier pair-coverage – live", () => {
     // Two sequential live pg connections (one per arg shape). Each typically
     // takes ~3-4s including credential mint + TLS + the schema query, so the
     // pair routinely exceeds vitest's 5s default per-test budget. Bump to
-    // 30s — generous enough for a slow-starting Lakebase endpoint without
+    // 30s – generous enough for a slow-starting Lakebase endpoint without
     // hiding a real hang (resolveBranchId's normalization is already sync).
     const info = await getBranchByName(TEST_BRANCH!, { instance: TEST_INSTANCE! });
     expect(info).toBeTruthy();
@@ -146,7 +146,7 @@ describe("branch identifier pair-coverage – live", () => {
   it.skipIf(!live)("listBranches surfaces sourceBranchName for non-default branches", async () => {
     const branches = await listBranches({ instance: TEST_INSTANCE! });
     const nonDefault = branches.filter((b) => !b.isDefault);
-    // At least one non-default branch should have a parent recorded —
+    // At least one non-default branch should have a parent recorded –
     // otherwise the adapter has nothing to assert against.
     const withParent = nonDefault.filter((b) => b.sourceBranchName);
     expect(withParent.length).toBeGreaterThan(0);

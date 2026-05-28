@@ -10,7 +10,7 @@
 // run-cycle.ts to drive an actual TDD cycle.
 
 export interface ExperimentRunInput {
-  /** Stable identifier — matches an `.tdd/experiments/<F>/<slug>/` dir. */
+  /** Stable identifier – matches an `.tdd/experiments/<F>/<slug>/` dir. */
   slug: string;
   /** Free-form payload the runner can consume (strategy, branch, etc.). */
   context?: Record<string, unknown>;
