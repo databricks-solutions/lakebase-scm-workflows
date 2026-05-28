@@ -123,6 +123,23 @@ if [[ -z "$PROFILE" ]]; then
   exit 2
 fi
 
+# Load .env.template.config (public defaults, committed) then
+# .env.local.config (local overrides, gitignored). Both use `export
+# VAR=value` so values propagate to child processes (npx vitest, etc.).
+# Variables passed inline at script invocation are stomped by the
+# template; if you need an invocation-time override, set it in
+# .env.local.config or pass via the script's --flags.
+if [[ -f "$REPO_ROOT/.env.template.config" ]]; then
+  blue "==> Sourcing .env.template.config (public defaults)"
+  # shellcheck source=/dev/null
+  . "$REPO_ROOT/.env.template.config"
+fi
+if [[ -f "$REPO_ROOT/.env.local.config" ]]; then
+  blue "==> Sourcing .env.local.config (local overrides)"
+  # shellcheck source=/dev/null
+  . "$REPO_ROOT/.env.local.config"
+fi
+
 blue "==> Resolving workspace host from profile '$PROFILE'"
 if ! command -v databricks >/dev/null 2>&1; then
   red "  databricks CLI not on PATH"
@@ -242,7 +259,10 @@ fi
 # tdd-synthesis paths. We compute ms = days * 86_400_000 here so the
 # substrate's existing convention defaults pick it up.
 if [[ -n "$FEATURE_TTL_DAYS" ]]; then
-  export LAKEBASE_KIT_FEATURE_BRANCH_TTL_MS="$(( FEATURE_TTL_DAYS * 86_400_000 ))"
+  # Bash arithmetic: avoid underscore separators (86_400_000 is parsed as
+  # octal in some bash modes and fails with "value too great for base").
+  # Plain digits work everywhere.
+  export LAKEBASE_KIT_FEATURE_BRANCH_TTL_MS="$(( FEATURE_TTL_DAYS * 86400000 ))"
   green "  LAKEBASE_KIT_FEATURE_BRANCH_TTL_MS=$LAKEBASE_KIT_FEATURE_BRANCH_TTL_MS  (${FEATURE_TTL_DAYS}d)"
 fi
 # Unlock the live Initializr fetch + the MCP peer-dep integration check.

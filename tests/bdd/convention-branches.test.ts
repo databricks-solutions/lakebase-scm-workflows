@@ -7,6 +7,7 @@
 // guard.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { KIT_TIMEOUTS, formatLakebaseTtl } from "../../scripts/lakebase/kit-config.js";
 
 const mockCreateBranch = vi.fn();
 
@@ -27,39 +28,47 @@ beforeEach(() => {
   });
 });
 
+// The forwarding contract under test is:
+//   "convention helper reads parentBranch + ttl from CONVENTION_TIER_DEFAULTS
+//    (which in turn read from KIT_TIMEOUTS) and forwards into createBranch".
+// Asserting hardcoded numeric TTLs would conflate that contract with the
+// "PSA defaults are 30/14/14/7 days" contract (already covered in
+// kit-config.test.ts). We derive expected values from KIT_TIMEOUTS so the
+// test stays correct when .env.local.config tightens a tier's TTL cap.
+
 describe("convention-branches: default tier values", () => {
-  it("createFeatureBranch defaults parentBranch=staging, ttl=30 days", async () => {
+  it("createFeatureBranch defaults parentBranch=staging, ttl from KIT_TIMEOUTS", async () => {
     await conv.createFeatureBranch({ instance: "p", branch: "f1" });
     expect(mockCreateBranch).toHaveBeenCalledTimes(1);
     expect(mockCreateBranch.mock.calls[0][0]).toMatchObject({
       instance: "p",
       branch: "f1",
       parentBranch: "staging",
-      ttl: `${30 * 86_400}s`,
+      ttl: formatLakebaseTtl(KIT_TIMEOUTS.featureBranchTtlMs),
     });
   });
 
-  it("createTestBranch defaults parentBranch=staging, ttl=14 days", async () => {
+  it("createTestBranch defaults parentBranch=staging, ttl from KIT_TIMEOUTS", async () => {
     await conv.createTestBranch({ instance: "p", branch: "t1" });
     expect(mockCreateBranch.mock.calls[0][0]).toMatchObject({
       parentBranch: "staging",
-      ttl: `${14 * 86_400}s`,
+      ttl: formatLakebaseTtl(KIT_TIMEOUTS.testBranchTtlMs),
     });
   });
 
-  it("createUatBranch defaults parentBranch=staging, ttl=14 days", async () => {
+  it("createUatBranch defaults parentBranch=staging, ttl from KIT_TIMEOUTS", async () => {
     await conv.createUatBranch({ instance: "p", branch: "u1" });
     expect(mockCreateBranch.mock.calls[0][0]).toMatchObject({
       parentBranch: "staging",
-      ttl: `${14 * 86_400}s`,
+      ttl: formatLakebaseTtl(KIT_TIMEOUTS.uatBranchTtlMs),
     });
   });
 
-  it("createPerfBranch defaults parentBranch=staging, ttl=7 days", async () => {
+  it("createPerfBranch defaults parentBranch=staging, ttl from KIT_TIMEOUTS", async () => {
     await conv.createPerfBranch({ instance: "p", branch: "perf1" });
     expect(mockCreateBranch.mock.calls[0][0]).toMatchObject({
       parentBranch: "staging",
-      ttl: `${7 * 86_400}s`,
+      ttl: formatLakebaseTtl(KIT_TIMEOUTS.perfBranchTtlMs),
     });
   });
 });

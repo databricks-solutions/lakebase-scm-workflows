@@ -10,6 +10,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.template.config
 *.vsix
 *.log
 coverage/

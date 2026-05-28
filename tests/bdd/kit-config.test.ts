@@ -59,11 +59,32 @@ describe("KIT_TIMEOUTS – documented defaults", () => {
     }
   });
 
-  it("convention branch TTLs match the PSA defaults (30d feature / 14d test+uat / 7d perf)", () => {
-    const DAY_MS = 24 * 60 * 60 * 1000;
+  // PSA-default convention TTLs (30d feature / 14d test+uat / 7d perf).
+  // Each tier's default is env-overridable; in a clean test env (no
+  // LAKEBASE_KIT_*_BRANCH_TTL_MS set) the defaults MUST resolve so the
+  // mainline path stays the no-config-required happy case. When a tier's
+  // override IS set (e.g. .env.local.config sources a tighter cap) the
+  // matching assertion is skipped; the env-override mechanic is covered
+  // by KitTimeouts' positive-integer + closed-shape contracts below.
+  const FEATURE_TTL_ENV = !!process.env.LAKEBASE_KIT_FEATURE_BRANCH_TTL_MS;
+  const TEST_TTL_ENV = !!process.env.LAKEBASE_KIT_TEST_BRANCH_TTL_MS;
+  const UAT_TTL_ENV = !!process.env.LAKEBASE_KIT_UAT_BRANCH_TTL_MS;
+  const PERF_TTL_ENV = !!process.env.LAKEBASE_KIT_PERF_BRANCH_TTL_MS;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  it.skipIf(FEATURE_TTL_ENV)("feature-tier default TTL is 30 days", () => {
     expect(KIT_TIMEOUTS.featureBranchTtlMs).toBe(30 * DAY_MS);
+  });
+
+  it.skipIf(TEST_TTL_ENV)("test-tier default TTL is 14 days", () => {
     expect(KIT_TIMEOUTS.testBranchTtlMs).toBe(14 * DAY_MS);
+  });
+
+  it.skipIf(UAT_TTL_ENV)("uat-tier default TTL is 14 days", () => {
     expect(KIT_TIMEOUTS.uatBranchTtlMs).toBe(14 * DAY_MS);
+  });
+
+  it.skipIf(PERF_TTL_ENV)("perf-tier default TTL is 7 days", () => {
     expect(KIT_TIMEOUTS.perfBranchTtlMs).toBe(7 * DAY_MS);
   });
 
@@ -107,18 +128,29 @@ describe("formatLakebaseTtl – protobuf Duration format", () => {
 });
 
 describe("KIT_REGISTRIES – package-registry URLs", () => {
-  it("defaults to the mainline public registries", () => {
-    // These are env-overridable; in a clean test env (no LAKEBASE_KIT_REGISTRY_*
-    // set) they MUST resolve to the documented public defaults so the
-    // mainline path stays the no-config-required happy case.
+  // Each registry default is env-overridable; in a clean test env (no
+  // LAKEBASE_KIT_REGISTRY_* set) they MUST resolve to the documented
+  // public defaults so the mainline path stays the no-config-required
+  // happy case. When the override IS set (e.g. .env.local.config sources
+  // a corp proxy) the matching default-value assertion is skipped; the
+  // override mechanic is covered by the trailing-slash + closed-shape
+  // contracts below, which hold for any URL the env resolves to.
+  const MAVEN_ENV = !!process.env.LAKEBASE_KIT_REGISTRY_MAVEN_CENTRAL;
+  const SPRING_ENV = !!process.env.LAKEBASE_KIT_REGISTRY_SPRING_INITIALIZR;
+
+  it.skipIf(MAVEN_ENV)("Maven Central defaults to the mainline public registry", () => {
     expect(KIT_REGISTRIES.mavenCentral).toBe("https://repo1.maven.org/maven2");
+  });
+
+  it.skipIf(SPRING_ENV)("Spring Initializr defaults to the mainline public registry", () => {
     expect(KIT_REGISTRIES.springInitializr).toBe("https://start.spring.io");
   });
 
   it("trailing slashes stripped so callers can safely concat `/path`", () => {
-    // The urlFromEnv helper trims trailing slashes – verify the defaults
-    // are already in trimmed form (a regression here would mean callers
-    // get `//path` after concatenation).
+    // The urlFromEnv helper trims trailing slashes (verify the resolved
+    // values are in trimmed form so callers don't get `//path` after
+    // concatenation). This contract holds for both the public defaults
+    // and any env-sourced override.
     expect(KIT_REGISTRIES.mavenCentral.endsWith("/")).toBe(false);
     expect(KIT_REGISTRIES.springInitializr.endsWith("/")).toBe(false);
   });
