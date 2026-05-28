@@ -4,7 +4,7 @@ description: "Test-driven development against paired Lakebase branches. Canonica
 user-invocable: true
 ---
 
-# lakebase-tdd-workflows — agent contract
+# lakebase-tdd-workflows – agent contract
 
 Agent-facing contract: hard rules, phase flow, agent prompt index, and concrete code patterns for the substrate primitives.
 
@@ -22,7 +22,7 @@ The contract every agent (Navigator, Driver, Orchestrator) and every human colla
 6. Never make a private method public to test it.
 7. Test count is a lagging indicator. The leading indicator is "how cheap is the next test?" Rising cost = design problem.
 8. Spike code is throwaway. Promote nothing from a spike branch into a TDD branch except notes.
-9. N=1 mode is iterative refinement. There is no promote/synthesize ceremony — the branch IS the feature.
+9. N=1 mode is iterative refinement. There is no promote/synthesize ceremony – the branch IS the feature.
 
 See [`agents/navigator.md`](agents/navigator.md) and [`agents/driver.md`](agents/driver.md) for per-role specializations.
 
@@ -30,10 +30,10 @@ See [`agents/navigator.md`](agents/navigator.md) and [`agents/driver.md`](agents
 
 | Phase | Output | HITL gate |
 |---|---|---|
-| 0 Discovery | Draft `feature.{md,json}` + `story.{md,json}` + `ac.{md,json}` per AC | **Gate 1 — Draft spec** |
-| 1 Architectural review | `layer` + `architectural_notes` populated; `architecture.md` summary | **Gate 2 — Architectural lens** |
-| 2 Test-list construction | Ordered `test-list.{md,json}` at feature level | **Gate 3 — Test list ordering** |
-| 3 Design-spec gate | Experiment plan in `selection-log.md` + `features/<F>/plan.json` | **Gate 4 — Experiment plan** |
+| 0 Discovery | Draft `feature.{md,json}` + `story.{md,json}` + `ac.{md,json}` per AC | **Gate 1 – Draft spec** |
+| 1 Architectural review | `layer` + `architectural_notes` populated; `architecture.md` summary | **Gate 2 – Architectural lens** |
+| 2 Test-list construction | Ordered `test-list.{md,json}` at feature level | **Gate 3 – Test list ordering** |
+| 3 Design-spec gate | Experiment plan in `selection-log.md` + `features/<F>/plan.json` | **Gate 4 – Experiment plan** |
 | 4 Implementation | Per-experiment cycles producing tests + code | Continuous: smells; final: promote / synthesize choice |
 
 Refuse to transition if prior-phase artifacts are missing or invalid.
@@ -42,17 +42,17 @@ Refuse to transition if prior-phase artifacts are missing or invalid.
 
 Load the per-role prompt for the phase you're in:
 
-- [`agents/architect-reviewer.md`](agents/architect-reviewer.md) — phase 1, populates `layer` and `architectural_notes`, imports `software-design-principles`.
-- [`agents/test-strategist.md`](agents/test-strategist.md) — phase 2, builds the Beck-style ordered test list.
-- [`agents/scrum-master.md`](agents/scrum-master.md) — phases 3 → 4, orchestrates the design-spec gate, spawns experiments, runs cycles, watches smells, surfaces to HITL.
-- [`agents/navigator.md`](agents/navigator.md) — phase 4 PLAN + RED + REVIEW.
-- [`agents/driver.md`](agents/driver.md) — phase 4 GREEN + REFACTOR.
+- [`agents/architect-reviewer.md`](agents/architect-reviewer.md) – phase 1, populates `layer` and `architectural_notes`, imports `software-design-principles`.
+- [`agents/test-strategist.md`](agents/test-strategist.md) – phase 2, builds the Beck-style ordered test list.
+- [`agents/scrum-master.md`](agents/scrum-master.md) – phases 3 → 4, orchestrates the design-spec gate, spawns experiments, runs cycles, watches smells, surfaces to HITL.
+- [`agents/navigator.md`](agents/navigator.md) – phase 4 PLAN + RED + REVIEW.
+- [`agents/driver.md`](agents/driver.md) – phase 4 GREEN + REFACTOR.
 
 ## References
 
-- [`references/spec-format.md`](references/spec-format.md) — full `.tdd/` directory layout + markdown ↔ JSON contract.
-- `scripts/tdd/schemas/` — JSON Schemas validated by `spec-sync.ts`.
-- [`../software-design-principles/SKILL.md`](../software-design-principles/SKILL.md) — engineering canon (SOLID, DRY, DTSTTCPW, layered architecture, cross-cutting concerns, NFRs). Required reading for Architect Reviewer and Navigator.
+- [`references/spec-format.md`](references/spec-format.md) – full `.tdd/` directory layout + markdown ↔ JSON contract.
+- `scripts/tdd/schemas/` – JSON Schemas validated by `spec-sync.ts`.
+- [`../software-design-principles/SKILL.md`](../software-design-principles/SKILL.md) – engineering canon (SOLID, DRY, DTSTTCPW, layered architecture, cross-cutting concerns, NFRs). Required reading for Architect Reviewer and Navigator.
 
 ## Operations
 
@@ -65,8 +65,8 @@ import { analyzeForGate, recordPlan, writePlan } from "@databricks-solutions/lak
 import { canCutAnotherExperiment } from "@databricks-solutions/lakebase-app-dev-kit/tdd/budget";
 
 const analysis = analyzeForGate(".tdd", "F1");
-// analysis.opinion_gaps[]  — items the analyzer flagged as opinion gaps
-// analysis.proposed_plan   — { mode: "N=1" | "N>=2", N, strategies[], budget, rationale }
+// analysis.opinion_gaps[]  – items the analyzer flagged as opinion gaps
+// analysis.proposed_plan   – { mode: "N=1" | "N>=2", N, strategies[], budget, rationale }
 
 // Surface to PO. On Gate 4 approval, persist:
 recordPlan(".tdd", analysis.proposed_plan, "kevin@example.com");
@@ -83,7 +83,7 @@ if (!ok.ok) throw new Error(`budget: ${ok.reason}`);
 import { cutExperiment, listExperiments, readOutcomes, writeOutcomes, deleteExperiment }
   from "@databricks-solutions/lakebase-app-dev-kit/tdd/experiment";
 
-// N=1 — slug matches the feature.
+// N=1 – slug matches the feature.
 const feature = await cutExperiment({
   instance: "proj-checkout",
   tddDir: ".tdd",
@@ -97,7 +97,7 @@ const feature = await cutExperiment({
 
 writeOutcomes(".tdd", "F1", "checkout", { status: "succeeded", tests_passed: 2 });
 
-// Teardown is HITL-gated. deleteBranchToo defaults to false — record survives.
+// Teardown is HITL-gated. deleteBranchToo defaults to false – record survives.
 await deleteExperiment({
   instance: "proj-checkout",
   tddDir: ".tdd",
@@ -148,7 +148,7 @@ const scope = {
 // Open a DSN against the experiment's branch DB (no mocks).
 const dsn = await openBranchDsn({ instance: "proj-checkout", branch_id: "checkout" });
 
-// RED — Navigator writes a failing test, persists the cycle artifact.
+// RED – Navigator writes a failing test, persists the cycle artifact.
 const c1 = beginCycle({
   ...scope,
   test_id: "T1",
@@ -156,10 +156,10 @@ const c1 = beginCycle({
   navigator_plan: "force the public boundary to accept a Cart payload",
 });
 
-// GREEN — Driver returns and Navigator reviews.
+// GREEN – Driver returns and Navigator reviews.
 markGreen(scope, c1.cycle_id, "added POST handler + repository write");
 
-// Optional REFACTOR — Navigator requests, Driver applies, no outer-boundary test changes.
+// Optional REFACTOR – Navigator requests, Driver applies, no outer-boundary test changes.
 markRefactored(scope, c1.cycle_id, "extracted CartRepository");
 
 // Navigator-flagged smells (Hard Rule 1, 4 violations).
@@ -187,9 +187,9 @@ import { compareExperiments }
   from "@databricks-solutions/lakebase-app-dev-kit/tdd/compare-experiments";
 
 const report = compareExperiments(".tdd", "F1");
-// report.rows[].signal       — "winning" | "stalled" | "abandoned" | "running" | "unknown"
-// report.recommendation      — "promote" | "synthesize" | "continue" | "abandon-all"
-// report.rationale           — short explanation surfaced to the PO
+// report.rows[].signal       – "winning" | "stalled" | "abandoned" | "running" | "unknown"
+// report.recommendation      – "promote" | "synthesize" | "continue" | "abandon-all"
+// report.rationale           – short explanation surfaced to the PO
 ```
 
 ### Promote (N≥2, single winner)
@@ -242,7 +242,7 @@ import { validateSpec, readFeature, writeFeature, readWorkflowState, writeWorkfl
   from "@databricks-solutions/lakebase-app-dev-kit/tdd/spec-sync";
 
 const drift = validateSpec(".tdd");
-// drift[].kind — "schema" | "pair-missing" | "narrative-empty" | "id-mismatch"
+// drift[].kind – "schema" | "pair-missing" | "narrative-empty" | "id-mismatch"
 // Warn-only; do not auto-correct narrative drift.
 ```
 
@@ -374,9 +374,9 @@ if (report.recommendation === "promote") {
 
 ## Adapters
 
-Bundled: `markdown.ts` (no-op default — the spec IS the tracking), `jira.ts` (stub). Project skills wire in the adapter they want via `.tdd/adapters/<name>.json` config.
+Bundled: `markdown.ts` (no-op default – the spec IS the tracking), `jira.ts` (stub). Project skills wire in the adapter they want via `.tdd/adapters/<name>.json` config.
 
-The `SpecAdapter` interface extends `SyncEventHooks` — implementations may opt into `onPhaseTransition`, `onCycleComplete`, `onSmellDetected` hooks for status-mirroring to external trackers. Adapter failures must degrade gracefully — the on-disk spec is the source of truth.
+The `SpecAdapter` interface extends `SyncEventHooks` – implementations may opt into `onPhaseTransition`, `onCycleComplete`, `onSmellDetected` hooks for status-mirroring to external trackers. Adapter failures must degrade gracefully – the on-disk spec is the source of truth.
 
 ## CLI bins
 
@@ -384,5 +384,5 @@ For non-agent invocation (debugging, CI introspection):
 
 | Command | Purpose |
 |---|---|
-| `node scripts/tdd/spec-sync.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exits 0 even when reports exist — warn-only. |
+| `node scripts/tdd/spec-sync.js <tddDir>` | Walk the `.tdd/` tree and print drift reports. Exits 0 even when reports exist – warn-only. |
 | `node scripts/tdd/test-list.js <tddDir> <featureId>` | Regenerate per-AC views from the feature-level master test list. |

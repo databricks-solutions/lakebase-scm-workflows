@@ -2,7 +2,7 @@
 //
 // Verifies that createFeatureBranch / createTestBranch / createUatBranch /
 // createPerfBranch forward the right parent + TTL into substrate's
-// createBranch — without actually hitting Lakebase. Live behavior is
+// createBranch – without actually hitting Lakebase. Live behavior is
 // exercised in the workspace-bound branch tests; this test is the contract
 // guard.
 

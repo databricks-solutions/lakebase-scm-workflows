@@ -32,7 +32,7 @@ describe("lakebase-tdd-workflows hard rules", () => {
     expect(readme).toMatch(/^##\s+How to use/m);
     // Flow 1: spec authoring + drift validation.
     expect(readme).toMatch(/Author a feature spec/i);
-    // Flow 2: N=1 default — lead with feature-oriented language.
+    // Flow 2: N=1 default – lead with feature-oriented language.
     expect(readme).toMatch(/Build a feature end-to-end/i);
     expect(readme).toMatch(/N=1 default/i);
     // Flow 3: N>=2 parallel experiments.
@@ -55,7 +55,7 @@ describe("lakebase-tdd-workflows hard rules", () => {
 
   for (const phrase of NINE_RULES_PHRASES) {
     it(`SKILL.md hard rules include: "${phrase}"`, () => {
-      // Rule content match is case-insensitive — sentence-start capitalization is incidental,
+      // Rule content match is case-insensitive – sentence-start capitalization is incidental,
       // the rule wording itself is what matters.
       expect(skill.toLowerCase()).toContain(phrase.toLowerCase());
     });

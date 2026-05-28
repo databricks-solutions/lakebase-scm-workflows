@@ -4,9 +4,9 @@ You apply the architectural lens to a draft spec. Your job is to ensure every ac
 
 ## Inputs
 
-- `.tdd/features/<F>/feature.{md,json}` — draft feature spec (Gate 1 signed off).
-- `.tdd/features/<F>/stories/<S>/story.{md,json}` — one or more stories.
-- `.tdd/features/<F>/stories/<S>/acs/<AC>.{md,json}` — one or more acceptance criteria.
+- `.tdd/features/<F>/feature.{md,json}` – draft feature spec (Gate 1 signed off).
+- `.tdd/features/<F>/stories/<S>/story.{md,json}` – one or more stories.
+- `.tdd/features/<F>/stories/<S>/acs/<AC>.{md,json}` – one or more acceptance criteria.
 
 ## Outputs
 
@@ -17,10 +17,10 @@ You apply the architectural lens to a draft spec. Your job is to ensure every ac
 ## Canon you must import
 
 Read `skills/software-design-principles/SKILL.md` and its references before annotating. Specifically:
-- [Layered architecture](../../software-design-principles/references/layered-architecture.md) — the four-layer model + dependency direction.
-- [Cross-cutting concerns](../../software-design-principles/references/cross-cutting-concerns.md) — ownership defaults table.
-- [SOLID](../../software-design-principles/references/solid.md) — module-level rules.
-- [NFRs](../../software-design-principles/references/nfrs.md) — baseline checklist.
+- [Layered architecture](../../software-design-principles/references/layered-architecture.md) – the four-layer model + dependency direction.
+- [Cross-cutting concerns](../../software-design-principles/references/cross-cutting-concerns.md) – ownership defaults table.
+- [SOLID](../../software-design-principles/references/solid.md) – module-level rules.
+- [NFRs](../../software-design-principles/references/nfrs.md) – baseline checklist.
 
 ## Method
 
@@ -36,14 +36,14 @@ For each AC:
 
 For each feature + story:
 
-5. Walk the [NFRs checklist](../../software-design-principles/references/nfrs.md). Populate `nfrs[]` with entries that have a non-trivial answer. "N/A — reason" is allowed; "unconsidered" is not.
+5. Walk the [NFRs checklist](../../software-design-principles/references/nfrs.md). Populate `nfrs[]` with entries that have a non-trivial answer. "N/A – reason" is allowed; "unconsidered" is not.
 
 For the feature as a whole:
 
 6. Write `architecture.md`. Sections:
-   - **Architectural Concerns Mapping** — fill in the table from `software-design-principles/SKILL.md`.
-   - **Pattern proposals** — any SOLID-driven module boundaries you anticipate.
-   - **Risks** — design choices that may need revisiting (call out explicitly, not as a TODO).
+   - **Architectural Concerns Mapping** – fill in the table from `software-design-principles/SKILL.md`.
+   - **Pattern proposals** – any SOLID-driven module boundaries you anticipate.
+   - **Risks** – design choices that may need revisiting (call out explicitly, not as a TODO).
 
 ## HITL gate (Gate 2)
 
@@ -59,4 +59,4 @@ Do **not** proceed to test-list construction until the PO signs off.
 - You do **not** write tests. Test-list construction is the Test Strategist's job in phase 2 (Test-list construction).
 - You do **not** decide promote-vs-synthesize. That's the PO in phase 4 (Implementation).
 - You do **not** weaken existing assertions on the ACs. If an AC is unclear, surface it to the PO; do not silently rewrite the Then clause.
-- If a cross-cutting concern is missing an owner, that's a finding — surface it; do not invent ownership.
+- If a cross-cutting concern is missing an owner, that's a finding – surface it; do not invent ownership.

@@ -7,9 +7,9 @@
   ],
   "_install": [
     "1. From a clone: `npm install && npm run build` (npm `prepare` builds dist/).",
-    "2. Add this server to your client's MCP config — for Claude Desktop, copy the entry below into ~/Library/Application Support/Claude/claude_desktop_config.json under `mcpServers`.",
+    "2. Add this server to your client's MCP config – for Claude Desktop, copy the entry below into ~/Library/Application Support/Claude/claude_desktop_config.json under `mcpServers`.",
     "3. Replace `node ./dist/apps/mcp-server/index.js` with an absolute path if the client doesn't have a cwd inside the repo.",
-    "Note: @modelcontextprotocol/sdk is an OPTIONAL peer dep of this package — kept out of regular `dependencies` so consumers that only import the substrate's TypeScript modules (like lakebase-scm-extension) don't drag the MCP runtime into their node_modules. The dev install in step 1 picks it up via devDependencies."
+    "Note: @modelcontextprotocol/sdk is an OPTIONAL peer dep of this package – kept out of regular `dependencies` so consumers that only import the substrate's TypeScript modules (like lakebase-scm-extension) don't drag the MCP runtime into their node_modules. The dev install in step 1 picks it up via devDependencies."
   ],
   "mcpServers": {
     "lakebase-app-dev-kit": {

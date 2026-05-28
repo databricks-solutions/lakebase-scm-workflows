@@ -70,7 +70,7 @@ export function promoteExperiment(args: PromoteArgs): PromoteResult {
     feature.status = "ready-for-review";
     writeFeature(tddDir, feature);
   } catch {
-    // No feature.json — caller's responsibility. Don't block promotion.
+    // No feature.json – caller's responsibility. Don't block promotion.
   }
 
   // Append to selection log
@@ -78,7 +78,7 @@ export function promoteExperiment(args: PromoteArgs): PromoteResult {
   const ts = new Date().toISOString();
   const lines = [
     "",
-    `## ${ts} — Promote ${winnerSlug} for ${featureId}`,
+    `## ${ts} – Promote ${winnerSlug} for ${featureId}`,
     `- **Winner:** ${winnerSlug} (branch ${winner.branch_id})`,
     losers.length > 0
       ? `- **Archived:** ${losers.map((l) => l.experiment_slug).join(", ")}`

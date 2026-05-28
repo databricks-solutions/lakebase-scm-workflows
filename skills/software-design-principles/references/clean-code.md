@@ -31,8 +31,8 @@ When to comment:
 - TODO / FIXME with a ticket number.
 
 When *not* to comment:
-- To explain *what* the code does — rename the function/variable instead.
-- To explain *how* the code works — extract a helper with a clear name.
+- To explain *what* the code does – rename the function/variable instead.
+- To explain *how* the code works – extract a helper with a clear name.
 - To narrate the developer's process ("first we get the user, then we check perms").
 - To restate the obvious (`// increment counter` next to `counter++`).
 - To mark removed code ("// removed X because Y"). Use git history.
@@ -45,7 +45,7 @@ A comment that would confuse a reader if removed deserves to exist. A comment wh
 - Once past the boundary, trust your own types.
 - Never silently swallow exceptions. At minimum log; ideally re-throw with context.
 - Don't `try/catch` for control flow. Exceptions are for *exceptional* conditions.
-- The "happy path" of a function should be visually obvious — error handling is the indented or guarded path.
+- The "happy path" of a function should be visually obvious – error handling is the indented or guarded path.
 
 Guard clauses beat nested ifs:
 
@@ -79,9 +79,9 @@ if (user) {
 Clean-code rules apply to tests:
 - Clear names that read like specifications (`it("rejects login when the password is wrong")`).
 - One assertion per test, ideally. If you need three, the test is doing three things.
-- No magic numbers — use named constants or fixture factories.
+- No magic numbers – use named constants or fixture factories.
 - AAA structure (Arrange / Act / Assert) is visible by indentation.
-- Test fixtures are data — repeat freely, don't over-factor.
+- Test fixtures are data – repeat freely, don't over-factor.
 
 ## The cleanest code question
 

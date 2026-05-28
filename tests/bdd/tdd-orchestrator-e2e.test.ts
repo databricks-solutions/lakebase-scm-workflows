@@ -22,7 +22,7 @@ afterEach(() => {
   rmSync(tdd, { recursive: true, force: true });
 });
 
-describe("orchestrator e2e (hermetic — stubbed Navigator + Driver, real script primitives)", () => {
+describe("orchestrator e2e (hermetic – stubbed Navigator + Driver, real script primitives)", () => {
   it("walks phases 0 -> 1 -> 2 -> 3 -> 4 with HITL-recorded gates and persists every artifact", () => {
     // --- Phase 0: Discovery ---
     writeWorkflowState(tdd, { phase: "discovery", started_at: new Date().toISOString() });
@@ -86,7 +86,7 @@ describe("orchestrator e2e (hermetic — stubbed Navigator + Driver, real script
     expect(existsSync(join(tdd, "features", "F1", "plan.json"))).toBe(true);
     expect(readFileSync(join(tdd, "selection-log.md"), "utf8")).toContain("Experiment plan for F1");
 
-    // HITL Gate 4 approval — transition to implementation
+    // HITL Gate 4 approval – transition to implementation
     writeWorkflowState(tdd, {
       phase: "implementation",
       feature_id: "F1",
@@ -113,7 +113,7 @@ describe("orchestrator e2e (hermetic — stubbed Navigator + Driver, real script
     expect(cycles.length).toBe(2);
     expect(cycles.every((c) => c.green_at)).toBe(true);
 
-    // Smell detection runs after every cycle pair — no smells expected for a clean run
+    // Smell detection runs after every cycle pair – no smells expected for a clean run
     const hits = runDetectorsForScope(tdd, scope);
     expect(hits).toEqual([]);
     writeSmellsLog(tdd, hits);
@@ -147,7 +147,7 @@ describe("orchestrator e2e (hermetic — stubbed Navigator + Driver, real script
 
 const liveDescribe = LIVE ? describe : describe.skip;
 
-liveDescribe("orchestrator e2e (live — LAKEBASE_TEST_E2E=1)", () => {
+liveDescribe("orchestrator e2e (live – LAKEBASE_TEST_E2E=1)", () => {
   it("end-to-end smoke: branch primitive available + getConnection resolves", async () => {
     // The hermetic test exercises the orchestration shape; the live tier asserts that
     // the Lakebase-backed primitives the orchestrator depends on resolve in a real env.

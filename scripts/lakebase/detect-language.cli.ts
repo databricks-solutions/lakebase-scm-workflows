@@ -35,7 +35,7 @@ function parseProjectDir(argv: string[]): string {
 
 function printHelpAndExit(): never {
   process.stdout.write(
-    `lakebase-detect-language — print the project's language\n\n` +
+    `lakebase-detect-language – print the project's language\n\n` +
       `Usage:\n` +
       `  lakebase-detect-language [--project-dir <path>]\n\n` +
       `Output (stdout): one of "java", "python", "nodejs"\n` +

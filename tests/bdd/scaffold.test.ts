@@ -159,7 +159,7 @@ describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
     expect(prYml).toMatch(/github:databricks-solutions\/lakebase-app-dev-kit/);
     expect(prYml).toMatch(/--instance "\$LAKEBASE_PROJECT_ID"/);
     expect(prYml).toMatch(/--branch "\$LAKEBASE_BRANCH_NAME"/);
-    // The old per-language branches MUST be gone — substrate handles
+    // The old per-language branches MUST be gone – substrate handles
     // language detection internally.
     expect(prYml).not.toMatch(/flyway:migrate/);
     expect(prYml).not.toMatch(/uv run alembic upgrade head/);
@@ -288,7 +288,7 @@ describe("deployWorkflows: {{LAKEBASE_KIT_VERSION}} substitution", () => {
   it("falls back to 'unknown' when templatesDir points at a tree without a package.json", async () => {
     // Build a minimal fixture: tmpRoot has only `templates/project/common/.github/workflows/`,
     // no package.json at tmpRoot. kitVersion() resolves via path.dirname twice,
-    // so the lookup target is tmpRoot/package.json — which is absent.
+    // so the lookup target is tmpRoot/package.json – which is absent.
     const fixture = mkTmp();
     const templates = path.join(fixture, "templates", "project");
     const wfDir = path.join(templates, "common", ".github", "workflows");

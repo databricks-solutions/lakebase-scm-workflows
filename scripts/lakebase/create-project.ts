@@ -258,7 +258,7 @@ export { writeEnvFile, verifyHooks, verifyWorkflows, verifyProject };
  * both when the substrate is consumed via git URL (dist + src co-located) and
  * when it's invoked directly from a dev clone.
  *
- * Safe to call when <targetDir>/.tdd/ already exists — existing files are not
+ * Safe to call when <targetDir>/.tdd/ already exists – existing files are not
  * overwritten so a project that already started TDD work is preserved.
  */
 export function layDownTddScaffold(targetDir: string): void {

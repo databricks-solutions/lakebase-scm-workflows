@@ -80,7 +80,7 @@ export interface OpenBranchDsnArgs {
 /**
  * Open a DSN against the experiment's Lakebase branch so the test runner
  * (Vitest / Jest / Pytest / Flyway / etc.) can connect to a real per-branch DB.
- * Returned DSN strings are scoped to the experiment branch — not staging, not prod.
+ * Returned DSN strings are scoped to the experiment branch – not staging, not prod.
  */
 export async function openBranchDsn(args: OpenBranchDsnArgs): Promise<DsnResult> {
   return getConnection({

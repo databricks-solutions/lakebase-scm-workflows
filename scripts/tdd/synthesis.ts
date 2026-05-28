@@ -79,7 +79,7 @@ export async function synthesizeExperiments(args: SynthesizeArgs): Promise<Synth
   ].join("\n");
   writeFileSync(decisionFile, decisionBody);
 
-  // Synthesized spec subtree — copy the most-recent winning spec (or the first pick) as a starting point
+  // Synthesized spec subtree – copy the most-recent winning spec (or the first pick) as a starting point
   const synthesizedSpecDir = join(synthesisDir, "synthesized-spec");
   mkdirSync(synthesizedSpecDir, { recursive: true });
   const seedFeatureDir = locateFeatureDir(tddDir, featureId);
@@ -95,7 +95,7 @@ export async function synthesizeExperiments(args: SynthesizeArgs): Promise<Synth
   const logPath = join(tddDir, "selection-log.md");
   const logLines = [
     "",
-    `## ${ts} — Synthesize ${featureId}`,
+    `## ${ts} – Synthesize ${featureId}`,
     `- **Synthesized experiment:** ${synthesizedSlug}`,
     `- **Picks:**`,
     ...picks.map((p) => `  - ${p.source_slug}: ${p.capability}`),

@@ -1,4 +1,4 @@
-# NFRs — non-functional requirements
+# NFRs – non-functional requirements
 
 The baseline checklist. Walk before declaring a feature done. Each row asks "what's the answer here, even if the answer is 'good enough'?"
 
@@ -28,7 +28,7 @@ Common smells:
 Common smells:
 - In-memory cache assumes one process.
 - Background job runs every N minutes; doesn't degrade gracefully under load.
-- "We'll worry about scale later" — but the data model can't grow.
+- "We'll worry about scale later" – but the data model can't grow.
 
 ### 3. Security
 
@@ -48,7 +48,7 @@ Common smells:
 - **Logs:** structured, correlation-id, level-appropriate?
 - **Metrics:** at least request count, error rate, latency histogram per endpoint / job?
 - **Traces:** spans for cross-service / cross-layer calls?
-- **Alerts:** what's the symptom-based alert? (Not "CPU high" — "checkout success rate dropped.")
+- **Alerts:** what's the symptom-based alert? (Not "CPU high" – "checkout success rate dropped.")
 
 Common smells:
 - A feature ships with `console.log("ok")` as its only signal.
@@ -76,8 +76,8 @@ Common smells:
 - **Recovery:** if state corrupts, can it be rebuilt?
 
 Common smells:
-- An external API call with no timeout — hangs forever on a slow upstream.
-- A retry loop with no backoff — DDoSes the upstream when it returns.
+- An external API call with no timeout – hangs forever on a slow upstream.
+- A retry loop with no backoff – DDoSes the upstream when it returns.
 - A write that doubles a counter if delivered twice.
 
 ## How to apply the checklist
@@ -85,14 +85,14 @@ Common smells:
 This is not a 200-item compliance form. It's a 10-minute conversation:
 
 1. Read the six categories.
-2. For each, name the answer in one sentence — even "no requirement here" is a valid answer.
+2. For each, name the answer in one sentence – even "no requirement here" is a valid answer.
 3. If you can't answer in one sentence, note it as a follow-up.
 
 The cost of skipping the check is finding the gap in production. The cost of running the check is 10 minutes.
 
 ## When the checklist sets a release gate
 
-In `lakebase-release-workflows`, the NFR baseline is the release gate before promote-to-prod. Each row must have an answer recorded in the release ticket (or an explicit "N/A — reason").
+In `lakebase-release-workflows`, the NFR baseline is the release gate before promote-to-prod. Each row must have an answer recorded in the release ticket (or an explicit "N/A – reason").
 
 That's not bureaucracy. It's the audit trail when something breaks in production and the question "did anyone think about this" needs an answer.
 

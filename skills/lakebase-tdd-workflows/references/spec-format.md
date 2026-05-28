@@ -69,7 +69,7 @@ The on-disk `.tdd/` layout that the lakebase-tdd-workflows substrate reads and w
 - Schema: every `.json` is validated against its schema in `scripts/tdd/schemas/`. A schema failure is a hard error reported as a `DriftReport` of kind `schema`.
 - Pair completeness: each `feature.json`, `story.json`, and `ac.json` must have a sibling `.md`. Missing narrative is reported as `pair-missing`. Empty narrative is reported as `narrative-empty` (size < 20 bytes).
 - ID consistency: the directory name must start with the `id` field from the JSON. Mismatches are reported as `id-mismatch`.
-- Drift is **warn-only**. The CLI exits 0 with reports printed. Auto-correction is intentionally not done — narrative changes are too easy to silently overwrite.
+- Drift is **warn-only**. The CLI exits 0 with reports printed. Auto-correction is intentionally not done – narrative changes are too easy to silently overwrite.
 
 ## Schemas (machine contract)
 
@@ -87,8 +87,8 @@ Schemas live at `scripts/tdd/schemas/`. The substrate consumes them via Ajv in `
 
 The on-disk format is canonical. Adapters (markdown, jira, github-issues, etc.) implement `SpecAdapter` from `scripts/tdd/adapters/types.ts` to mirror state to an external system. The `external_ref` field on every entity carries `{adapter, external_id}` once an adapter has pushed.
 
-- **`markdown.ts`** — no-op (the spec IS the tracking). Default when no adapter is configured.
-- **`jira.ts`** — stub at M1.5; full implementation deferred. When wired, will push features as Stories under an Epic, ACs as Sub-tasks, status as JIRA transitions.
+- **`markdown.ts`** – no-op (the spec IS the tracking). Default when no adapter is configured.
+- **`jira.ts`** – stub at M1.5; full implementation deferred. When wired, will push features as Stories under an Epic, ACs as Sub-tasks, status as JIRA transitions.
 
 ## Read / write helpers
 

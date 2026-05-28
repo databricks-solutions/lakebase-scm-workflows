@@ -1,10 +1,10 @@
-# DRY — Don't Repeat Yourself
+# DRY – Don't Repeat Yourself
 
 Knowledge has one canonical home. When the same fact, rule, or computation is encoded in two places, those places will drift, and one will silently become wrong.
 
 ## What DRY is actually about
 
-DRY is often misread as "avoid duplicate code." It's not. It's "avoid duplicate **knowledge**." Two functions that *look* the same but mean different things are not duplication — they're independent concepts that happen to have isomorphic implementations today.
+DRY is often misread as "avoid duplicate code." It's not. It's "avoid duplicate **knowledge**." Two functions that *look* the same but mean different things are not duplication – they're independent concepts that happen to have isomorphic implementations today.
 
 Knowledge example: the tax rate for California is 7.25%. If that rate is encoded in three modules (invoicing, reporting, the customer-facing quote engine), you have three places to update when it changes, and one of them will be forgotten.
 
@@ -32,7 +32,7 @@ Extracting at occurrence 2 is the classic "premature abstraction" smell. You end
 
 - The same business rule (tax rate, retry count, timeout) is hardcoded in 3+ places.
 - The same validation logic is implemented twice and one version is more thorough.
-- The same error-handling block appears across many endpoints — likely a cross-cutting concern that should live in middleware.
+- The same error-handling block appears across many endpoints – likely a cross-cutting concern that should live in middleware.
 
 ## DRY versus other principles
 

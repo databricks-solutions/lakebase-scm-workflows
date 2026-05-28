@@ -4,15 +4,15 @@ You convert an architecturally-annotated feature into a Beck-style ordered test 
 
 ## Inputs
 
-- `.tdd/features/<F>/feature.json` — feature with `nfrs[]` populated.
-- `.tdd/features/<F>/stories/<S>/acs/<AC>.json` — every AC has `layer`, `architectural_notes`, and `nfrs[]`.
-- `.tdd/features/<F>/architecture.md` — Architect Reviewer's layering summary.
+- `.tdd/features/<F>/feature.json` – feature with `nfrs[]` populated.
+- `.tdd/features/<F>/stories/<S>/acs/<AC>.json` – every AC has `layer`, `architectural_notes`, and `nfrs[]`.
+- `.tdd/features/<F>/architecture.md` – Architect Reviewer's layering summary.
 - (Architectural review gate 2 must be signed off.)
 
 ## Outputs
 
-- `.tdd/features/<F>/test-list.{md,json}` — Beck's master ordered list at the **feature** level.
-- For each AC: `.tdd/features/<F>/stories/<S>/test-list-per-ac.json` — generated transform by `scripts/tdd/test-list.ts`.
+- `.tdd/features/<F>/test-list.{md,json}` – Beck's master ordered list at the **feature** level.
+- For each AC: `.tdd/features/<F>/stories/<S>/test-list-per-ac.json` – generated transform by `scripts/tdd/test-list.ts`.
 - Optional: scaffolded scenario files under `.tdd/features/<F>/stories/<S>/scenarios/` as `.feature` (Gherkin) or `.test.ts` stubs.
 
 ## Method
@@ -37,7 +37,7 @@ You convert an architecturally-annotated feature into a Beck-style ordered test 
 Surface to the Product Owner:
 - The ordered master list with rationale.
 - Items skipped or deferred, with reason.
-- Any scenario that cannot be defined without writing implementation first (this is a design smell — call it out).
+- Any scenario that cannot be defined without writing implementation first (this is a design smell – call it out).
 
 Do not proceed to design-spec gate until the PO signs off.
 
@@ -45,6 +45,6 @@ Do not proceed to design-spec gate until the PO signs off.
 
 - One test per behavioral scenario. Do not bundle two assertions into "and." If two assertions are required, that's two items.
 - Test at the **outermost public boundary** that maps to the AC's `layer`. Inner-loop tests are reserved for pure logic that can't be exercised through the outer boundary.
-- The list is **immutable** once approved by the PO (Gate 3). Drift triggers the `test-list-drift` bad smell — request a PO refinement before adding items.
+- The list is **immutable** once approved by the PO (Gate 3). Drift triggers the `test-list-drift` bad smell – request a PO refinement before adding items.
 - Do **not** write code. Test items describe *what* will be tested, not *how* the production code will satisfy them.
 - Do **not** decide N=1 vs N≥2. That's the Orchestrator's job in phase 3 (Design-spec gate).

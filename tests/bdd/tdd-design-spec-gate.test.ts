@@ -36,7 +36,7 @@ describe("design-spec-gate", () => {
     writeMasterTestList(tdd, {
       feature_id: "F1",
       items: [
-        { id: "T1", description: "either postgres arrays or json blob — decide", ac_id: "AC1", status: "pending" },
+        { id: "T1", description: "either postgres arrays or json blob – decide", ac_id: "AC1", status: "pending" },
         { id: "T2", description: "consider whether to denormalize", ac_id: "AC1", status: "pending" },
         { id: "T3", description: "happy path", ac_id: "AC2", status: "pending" },
       ],

@@ -32,7 +32,7 @@ afterEach(() => {
   rmSync(tdd, { recursive: true, force: true });
 });
 
-describe("synthesizeExperiments (hermetic — pre-cut validation + on-disk side effects)", () => {
+describe("synthesizeExperiments (hermetic – pre-cut validation + on-disk side effects)", () => {
   it("throws when hitlApproved is false", async () => {
     await expect(
       synthesizeExperiments({
@@ -102,7 +102,7 @@ describe("synthesizeExperiments (hermetic — pre-cut validation + on-disk side 
         approverEmail: "kevin@example.com",
       });
     } catch {
-      // Expected when not running live — cutExperiment will reach for Lakebase and fail.
+      // Expected when not running live – cutExperiment will reach for Lakebase and fail.
       // The on-disk side effects (decision + spec subtree + selection-log) happen first
       // and are what we assert here.
     }
@@ -123,7 +123,7 @@ describe("synthesizeExperiments (hermetic — pre-cut validation + on-disk side 
 
 const liveDescribe = LIVE ? describe : describe.skip;
 
-liveDescribe("synthesizeExperiments (live — LAKEBASE_TEST_E2E=1)", () => {
+liveDescribe("synthesizeExperiments (live – LAKEBASE_TEST_E2E=1)", () => {
   it("cuts a fresh branch for the renegotiated cycle", async () => {
     seedFeature();
     seedExperiment("exp-a");

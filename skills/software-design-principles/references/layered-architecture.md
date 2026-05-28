@@ -4,10 +4,10 @@ A way to decide where code lives. Dependencies point inward; cross-cutting conce
 
 ## The four layers
 
-1. **HTTP / Boundary layer** — the outermost edge. Accepts requests (HTTP, CLI args, message queue events), validates input shape, returns responses. Knows the wire format. Does *not* contain business logic.
-2. **Service layer** — business logic. Owns the domain model. Coordinates infrastructure calls. Knows nothing about HTTP, headers, status codes.
-3. **Infrastructure layer** — talks to the outside world. Database, object store, external APIs, file system, secrets. Returns domain types to the service layer.
-4. **Policy / Config layer** — declarative rules: feature flags, environment-specific limits, capability matrices. Read by the layers above; never reaches into them.
+1. **HTTP / Boundary layer** – the outermost edge. Accepts requests (HTTP, CLI args, message queue events), validates input shape, returns responses. Knows the wire format. Does *not* contain business logic.
+2. **Service layer** – business logic. Owns the domain model. Coordinates infrastructure calls. Knows nothing about HTTP, headers, status codes.
+3. **Infrastructure layer** – talks to the outside world. Database, object store, external APIs, file system, secrets. Returns domain types to the service layer.
+4. **Policy / Config layer** – declarative rules: feature flags, environment-specific limits, capability matrices. Read by the layers above; never reaches into them.
 
 ## Dependency direction (the cardinal rule)
 
@@ -27,7 +27,7 @@ If you find an `import express` in your service layer, that's a violation. If yo
 
 **HTTP / Boundary:**
 - Request parsing, schema validation (zod, ajv, etc.)
-- Auth header extraction (not auth decisions — those are policy/service)
+- Auth header extraction (not auth decisions – those are policy/service)
 - Response shaping, content-negotiation
 - Rate limiting
 - CORS / security headers
@@ -84,7 +84,7 @@ Don't confuse "microservice" with "layer." A microservice still needs HTTP, serv
 
 These are refinements of layered architecture that emphasize ports + adapters. The dependency rule (dependencies point inward) is the shared core. For most systems, the four-layer mental model above is sufficient.
 
-If your domain is complex enough that you need ports and adapters, you'll know — but reach for the more elaborate model when the simple one strains, not before. (DTSTTCPW applies here too.)
+If your domain is complex enough that you need ports and adapters, you'll know – but reach for the more elaborate model when the simple one strains, not before. (DTSTTCPW applies here too.)
 
 ## The layered-architecture check
 

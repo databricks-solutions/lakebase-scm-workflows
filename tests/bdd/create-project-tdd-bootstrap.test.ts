@@ -30,7 +30,7 @@ describe("layDownTddScaffold (hermetic)", () => {
     expect(state.phase).toBe("discovery");
   });
 
-  it("is idempotent — running twice does not overwrite existing .tdd/", () => {
+  it("is idempotent – running twice does not overwrite existing .tdd/", () => {
     layDownTddScaffold(projectDir);
     // Mutate one of the files so we can detect overwrites.
     const stateFile = join(projectDir, ".tdd", "workflow-state.json");

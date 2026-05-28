@@ -1,4 +1,4 @@
-# DTSTTCPW — Do The Simplest Thing That Could Possibly Work
+# DTSTTCPW – Do The Simplest Thing That Could Possibly Work
 
 The TDD counter-balance to speculative generality. Write the code that makes the *current* test pass. No more.
 
@@ -12,7 +12,7 @@ If a constant satisfies the test, return a constant. (Yes, even that.) The next 
 
 Programmers who have been burned by under-engineering reach instinctively for abstraction. The lesson "I should have made this configurable" generalizes to "always make things configurable," and now every new module ships with five configuration knobs nobody uses.
 
-DTSTTCPW asks for the discipline to leave the abstraction unbuilt until evidence demands it. The evidence comes from the test list — when the second test introduces variability, *that's* when you parameterize.
+DTSTTCPW asks for the discipline to leave the abstraction unbuilt until evidence demands it. The evidence comes from the test list – when the second test introduces variability, *that's* when you parameterize.
 
 ## Concrete examples
 
@@ -37,15 +37,15 @@ SOLID is about module-level shape *once you have enough use cases to know what t
 
 ## What "honest" means
 
-The full rule is "minimal *honest* code." Honesty rules out shortcuts that satisfy the *current* test but contradict the *test list*. If the list has 10 tests and you can see test #5 will demand a hash map, you don't need to *build* the hash map at test #1 — but you shouldn't write code at test #1 that knowingly breaks at test #5 either.
+The full rule is "minimal *honest* code." Honesty rules out shortcuts that satisfy the *current* test but contradict the *test list*. If the list has 10 tests and you can see test #5 will demand a hash map, you don't need to *build* the hash map at test #1 – but you shouldn't write code at test #1 that knowingly breaks at test #5 either.
 
 The horizon is the test list, not the current test. The increment is one test at a time.
 
 ## When NOT to apply DTSTTCPW
 
-- **At system boundaries.** Public APIs, file formats, database schemas — these are hard to change. Speculate carefully *here*, because the cost of unwinding the wrong choice is high.
+- **At system boundaries.** Public APIs, file formats, database schemas – these are hard to change. Speculate carefully *here*, because the cost of unwinding the wrong choice is high.
 - **At known integration points.** If you already know you'll need to call a payment provider, don't write a stub that hardcodes "Stripe." Use an interface from day one.
-- **For safety-critical paths.** Auth, authz, audit — these need the right abstraction up front because the cost of getting them wrong is severe.
+- **For safety-critical paths.** Auth, authz, audit – these need the right abstraction up front because the cost of getting them wrong is severe.
 
 For internal logic, default to DTSTTCPW. For boundaries, design carefully.
 

@@ -95,7 +95,7 @@ describe("run-cycle (hermetic)", () => {
 
 const liveDescribe = LIVE ? describe : describe.skip;
 
-liveDescribe("run-cycle (live — LAKEBASE_TEST_E2E=1)", () => {
+liveDescribe("run-cycle (live – LAKEBASE_TEST_E2E=1)", () => {
   it("openBranchDsn returns a DSN that resolves to the experiment branch", async () => {
     const instance = process.env.LAKEBASE_TEST_INSTANCE!;
     const branch = process.env.LAKEBASE_TEST_BRANCH!;

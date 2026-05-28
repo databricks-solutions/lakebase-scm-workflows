@@ -7,7 +7,7 @@ The grammar of object-oriented design. Five principles that keep modules small, 
 A module should have one reason to change. If two stakeholders ask for unrelated edits to the same file, that file owns two responsibilities.
 
 **Smell:** `UserService` handles auth, profile editing, audit logging, and email notifications.
-**Better:** `Authenticator`, `ProfileEditor`, `AuditLogger`, `Notifier` — each with one reason to change.
+**Better:** `Authenticator`, `ProfileEditor`, `AuditLogger`, `Notifier` – each with one reason to change.
 
 The test: name the module's responsibility in one sentence without using "and." If you can't, split it.
 
@@ -22,7 +22,7 @@ OCP is about reducing the blast radius of change.
 
 ## Liskov Substitution Principle (LSP)
 
-Subtypes must be substitutable for their base types without changing program correctness. If a function works with `Bird`, it must work with every subclass of `Bird` — including `Penguin`.
+Subtypes must be substitutable for their base types without changing program correctness. If a function works with `Bird`, it must work with every subclass of `Bird` – including `Penguin`.
 
 **Smell:** `Penguin extends Bird` but `fly()` throws `NotSupportedException`.
 **Better:** rethink the hierarchy. `Bird` and `FlyingBird` are different concepts.
@@ -34,7 +34,7 @@ LSP failures usually mean the inheritance was modeling taxonomy, not behavior.
 Clients should not depend on methods they don't use. A fat interface forces unrelated consumers to share a vocabulary.
 
 **Smell:** `IRepository<T>` with 30 methods, every consumer uses 3 of them.
-**Better:** `IReadable<T>`, `IWritable<T>`, `IQueryable<T>` — consumers depend only on what they use.
+**Better:** `IReadable<T>`, `IWritable<T>`, `IQueryable<T>` – consumers depend only on what they use.
 
 ## Dependency Inversion Principle (DIP)
 

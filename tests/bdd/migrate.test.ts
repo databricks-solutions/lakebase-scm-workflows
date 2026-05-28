@@ -210,7 +210,7 @@ describe("listMigrations: language override", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkTempDir();
-    // No detection markers — language must be passed explicitly.
+    // No detection markers – language must be passed explicitly.
     const migrations = path.join(dir, "migrations", "versions");
     fs.mkdirSync(migrations, { recursive: true });
     fs.writeFileSync(path.join(migrations, "aa111_init.py"), "");

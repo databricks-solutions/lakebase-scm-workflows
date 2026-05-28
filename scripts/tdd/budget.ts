@@ -61,7 +61,7 @@ export function checkBudget(snapshot: BudgetSnapshot): BudgetViolation[] {
 
 export function canCutAnotherExperiment(tddDir: string, featureId: string): { ok: boolean; reason?: string } {
   const snap = snapshotBudget(tddDir, featureId);
-  if (!snap) return { ok: false, reason: "no plan recorded — run design-spec-gate first" };
+  if (!snap) return { ok: false, reason: "no plan recorded – run design-spec-gate first" };
   if (snap.concurrent_branches_in_use >= snap.concurrent_branches_limit) {
     return {
       ok: false,

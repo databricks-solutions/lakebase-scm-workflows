@@ -1,6 +1,6 @@
 # Cross-cutting concerns
 
-Concerns that span multiple modules — auth, audit, rate limiting, schema validation, capability resolution, policy. The design failure mode is *implementing the same concern in multiple places* and having the implementations drift.
+Concerns that span multiple modules – auth, audit, rate limiting, schema validation, capability resolution, policy. The design failure mode is *implementing the same concern in multiple places* and having the implementations drift.
 
 The rule: **each cross-cutting concern has one owner layer and one owner module.** Everything else delegates.
 
@@ -37,7 +37,7 @@ Example: audit logging
 - The HTTP layer wraps the service call.
 - The wrapper calls `audit.emit(event)` after the service call returns or throws.
 - The audit module formats and writes the event.
-- The service does not call `audit.emit()` directly — that's the wrapper's job.
+- The service does not call `audit.emit()` directly – that's the wrapper's job.
 
 This way: adding a new audit destination touches *one* module; removing audit from a route touches *one* middleware registration.
 
@@ -45,18 +45,18 @@ This way: adding a new audit destination touches *one* module; removing audit fr
 
 Before merging a new feature, walk the mapping:
 
-- [ ] Authentication — does this route need it? Where is it enforced?
-- [ ] Authorization — is the action gated? Where does the decision live?
-- [ ] Capability resolution — does the caller need a capability check?
-- [ ] Audit — should this action emit an event? At which boundary?
-- [ ] Rate limiting — does this route need a limit?
-- [ ] Schema validation — is the input validated? Where?
-- [ ] Policy config — does this feature have configuration? Where does it live?
-- [ ] Transactions — what's the atomicity boundary?
-- [ ] Caching — does this read benefit from a cache?
-- [ ] Tracing/metrics — is this operation traced?
-- [ ] Secrets — does this feature consume any?
-- [ ] Feature flags — is this feature behind a flag?
+- [ ] Authentication – does this route need it? Where is it enforced?
+- [ ] Authorization – is the action gated? Where does the decision live?
+- [ ] Capability resolution – does the caller need a capability check?
+- [ ] Audit – should this action emit an event? At which boundary?
+- [ ] Rate limiting – does this route need a limit?
+- [ ] Schema validation – is the input validated? Where?
+- [ ] Policy config – does this feature have configuration? Where does it live?
+- [ ] Transactions – what's the atomicity boundary?
+- [ ] Caching – does this read benefit from a cache?
+- [ ] Tracing/metrics – is this operation traced?
+- [ ] Secrets – does this feature consume any?
+- [ ] Feature flags – is this feature behind a flag?
 
 A row left unanswered is a smell. A row answered "two modules handle it" is a bug waiting to happen.
 

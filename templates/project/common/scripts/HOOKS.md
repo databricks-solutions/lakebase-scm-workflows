@@ -56,7 +56,7 @@ fi
 
 **Option 2: chain inside the project's hook script.** Each Lakebase
 hook (`post-checkout.sh`, `prepare-commit-msg.sh`, `pre-push.sh`,
-`post-merge.sh`) is a plain shell script — add a leading block that
+`post-merge.sh`) is a plain shell script – add a leading block that
 invokes the corporate hook of the same name, then falls through to
 the Lakebase logic. This keeps the canonical version in
 `scripts/*.sh` (the source-of-truth that survives reinstalls).

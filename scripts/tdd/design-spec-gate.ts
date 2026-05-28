@@ -65,8 +65,8 @@ export function analyzeForGate(tddDir: string, featureId: string): GateAnalysis 
     },
     rationale:
       mode === "N=1"
-        ? "Fewer than 2 opinion gaps detected — refine iteratively on a single branch."
-        : `${gaps.length} opinion gaps detected — race up to 3 parallel strategies, then HITL chooses promote vs synthesize.`,
+        ? "Fewer than 2 opinion gaps detected – refine iteratively on a single branch."
+        : `${gaps.length} opinion gaps detected – race up to 3 parallel strategies, then HITL chooses promote vs synthesize.`,
   };
   return { feature_id: featureId, opinion_gaps: gaps, proposed_plan: proposed };
 }
@@ -88,7 +88,7 @@ export function recordPlan(tddDir: string, plan: ExperimentPlan, deciderEmail?: 
   const ts = new Date().toISOString();
   const lines = [
     "",
-    `## ${ts} — Experiment plan for ${plan.feature_id}`,
+    `## ${ts} – Experiment plan for ${plan.feature_id}`,
     `- **Mode:** ${plan.mode} (N=${plan.N})`,
     `- **Budget:** ${plan.budget.concurrent_branches} concurrent, ${plan.budget.wall_clock_minutes} min wall-clock, ${plan.budget.agent_pairs} agent pair(s)`,
     `- **Strategies:**`,
