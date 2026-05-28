@@ -10,7 +10,15 @@ import {
   cutExperiment,
 } from "../../scripts/tdd/experiment";
 
-const LIVE = process.env.LAKEBASE_TEST_E2E === "1" && !!process.env.DATABRICKS_HOST;
+// LIVE gate must include LAKEBASE_TEST_PROJECT_PATH because the live test
+// body REQUIRES it (throws "LAKEBASE_TEST_PROJECT_PATH required for live
+// test" otherwise). Previously the gate accepted E2E+HOST alone, so a run
+// with E2E=1 but no PROJECT_PATH would enable the describe and the test
+// body would throw — surfacing as a hard FAIL instead of a clean SKIP.
+const LIVE =
+  process.env.LAKEBASE_TEST_E2E === "1" &&
+  !!process.env.DATABRICKS_HOST &&
+  !!process.env.LAKEBASE_TEST_PROJECT_PATH;
 
 let tdd: string;
 
