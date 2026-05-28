@@ -59,6 +59,14 @@ export interface CreateConventionBranchArgs extends BranchLookupOpts {
   parentBranch?: string;
   /** Override the TTL. Defaults to the tier's value (see CONVENTION_TIER_DEFAULTS). */
   ttl?: string;
+  /**
+   * Forwarded to createBranch. When the convention's default parent (e.g.
+   * "staging") doesn't exist on the project, the substrate falls back to
+   * the project default branch with a stderr warning. Set strictParent:
+   * true to throw instead — useful for hotfix-from-production paths where
+   * the lineage MUST match the convention.
+   */
+  strictParent?: boolean;
 }
 
 /**
@@ -75,6 +83,7 @@ export async function createFeatureBranch(
     branch: args.branch,
     parentBranch: args.parentBranch ?? CONVENTION_TIER_DEFAULTS.feature.parentBranch,
     ttl: args.ttl ?? CONVENTION_TIER_DEFAULTS.feature.ttl,
+    strictParent: args.strictParent,
   });
 }
 
@@ -88,6 +97,7 @@ export async function createTestBranch(
     branch: args.branch,
     parentBranch: args.parentBranch ?? CONVENTION_TIER_DEFAULTS.test.parentBranch,
     ttl: args.ttl ?? CONVENTION_TIER_DEFAULTS.test.ttl,
+    strictParent: args.strictParent,
   });
 }
 
@@ -101,6 +111,7 @@ export async function createUatBranch(
     branch: args.branch,
     parentBranch: args.parentBranch ?? CONVENTION_TIER_DEFAULTS.uat.parentBranch,
     ttl: args.ttl ?? CONVENTION_TIER_DEFAULTS.uat.ttl,
+    strictParent: args.strictParent,
   });
 }
 
@@ -114,5 +125,6 @@ export async function createPerfBranch(
     branch: args.branch,
     parentBranch: args.parentBranch ?? CONVENTION_TIER_DEFAULTS.perf.parentBranch,
     ttl: args.ttl ?? CONVENTION_TIER_DEFAULTS.perf.ttl,
+    strictParent: args.strictParent,
   });
 }

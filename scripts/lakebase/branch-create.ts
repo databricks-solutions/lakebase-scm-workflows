@@ -70,6 +70,20 @@ export interface CreateBranchArgs extends BranchLookupOpts {
    * protobuf Duration JSON encoding — bare seconds with trailing "s".
    */
   ttl?: string;
+  /**
+   * Strictness for parentBranch lookup. When `parentBranch` is set but the
+   * named branch does not exist on the project, the substrate's default is
+   * to FALL BACK to the project's default branch with a stderr warning —
+   * which keeps the convention-tier defaults
+   * (CONVENTION_TIER_DEFAULTS.feature.parentBranch="staging", etc.)
+   * usable on projects that don't yet follow the PSA topology.
+   *
+   * Pass `strictParent: true` to opt OUT of the fallback and throw a
+   * typed LakebaseBranchError when the named parent is missing — useful
+   * for hotfix-from-production paths where the lineage MUST match the
+   * caller's expectation. Default: false (fallback enabled).
+   */
+  strictParent?: boolean;
 }
 
 /**
@@ -105,7 +119,41 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
       );
     }
     const validated = asBranchName(args.parentBranch);
-    sourceBranchPath = `${projectPath(args.instance)}/branches/${sanitizeBranchName(validated)}`;
+    // Verify the named parent ACTUALLY exists on the project. Without this
+    // check the substrate previously built the source_branch path via raw
+    // string interpolation; the API then errored with the opaque
+    // "branch id not found". Now: if the parent exists, use it; if not,
+    // fall back to the project default (default behavior) or throw
+    // (strictParent: true). This unblocks the CONVENTION_TIER_DEFAULTS
+    // path on bare-provisioned projects (which have `production` but no
+    // `staging`) while preserving the lineage guarantee for callers who
+    // opt into strict mode.
+    const parent = await getBranchByName(validated, lookup);
+    if (parent) {
+      sourceBranchPath = parent.name;
+    } else if (args.strictParent === true) {
+      throw new LakebaseBranchError(
+        `parentBranch '${validated}' does not exist on project '${args.instance}', ` +
+          `and strictParent: true was set. Either create '${validated}' first ` +
+          `(e.g. cut it off the project default branch) or drop strictParent: true ` +
+          `to fall back to the project default branch.`
+      );
+    } else {
+      const def = await getDefaultBranch(lookup);
+      if (!def) {
+        throw new LakebaseBranchError(
+          `parentBranch '${validated}' does not exist on project '${args.instance}' ` +
+            `and the project has no default branch to fall back to.`
+        );
+      }
+      const defaultLeaf = leafOf(def.name) ?? def.name;
+      process.stderr.write(
+        `[lakebase-branch-create] parentBranch '${validated}' not found on project ` +
+          `'${args.instance}'; falling back to default branch '${defaultLeaf}'. ` +
+          `Pass strictParent: true to throw instead.\n`
+      );
+      sourceBranchPath = def.name;
+    }
   } else if (args.currentBranch && args.currentBranch !== sanitized) {
     const current = await getBranchByName(args.currentBranch, lookup);
     if (current) sourceBranchPath = current.name;

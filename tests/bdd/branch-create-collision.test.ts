@@ -46,6 +46,18 @@ function fakeBranch(leaf: string, sourceLeaf: string | undefined): LakebaseBranc
   } as LakebaseBranchInfo;
 }
 
+// Per-name lookup table. createBranch now calls getBranchByName twice
+// per invocation: once for the parentBranch existence check (added with
+// the parentBranch fallback, see branch-create-fallback.test.ts) and
+// once for the target name idempotency check. Tests below register
+// expected return values for each name explicitly so the two calls
+// don't collide on a single mockResolvedValue.
+function setupBranchMock(branches: Record<string, LakebaseBranchInfo | undefined>) {
+  mockGetBranchByName.mockImplementation((name: string) =>
+    Promise.resolve(branches[name])
+  );
+}
+
 describe("createBranch – collision-vs-idempotency contract", () => {
   beforeEach(() => {
     mockGetBranchByName.mockReset();
@@ -54,7 +66,10 @@ describe("createBranch – collision-vs-idempotency contract", () => {
 
   it("returns the existing branch when its source matches the requested parent (idempotent retry)", async () => {
     const existing = fakeBranch("feature-foo", "production");
-    mockGetBranchByName.mockResolvedValue(existing);
+    setupBranchMock({
+      production: fakeBranch("production", undefined), // parent exists
+      "feature-foo": existing,                          // target also exists
+    });
 
     const result = await createBranch({
       instance: "ignored",
@@ -63,7 +78,7 @@ describe("createBranch – collision-vs-idempotency contract", () => {
     });
 
     expect(result).toBe(existing);
-    // Lookup runs twice: once to resolve the parent path, once to check
+    // Lookup runs twice: once to resolve/validate the parent, once to check
     // for an existing target. Both are mocked; the real CLI is never
     // invoked, which is the whole point of the hermetic test.
   });
@@ -71,7 +86,10 @@ describe("createBranch – collision-vs-idempotency contract", () => {
   it("throws when the existing branch was forked from a different source", async () => {
     // Existing branch was forked from staging…
     const existing = fakeBranch("feature-foo", "staging");
-    mockGetBranchByName.mockResolvedValue(existing);
+    setupBranchMock({
+      production: fakeBranch("production", undefined), // requested parent exists
+      "feature-foo": existing,                          // target exists with mismatched lineage
+    });
 
     // …but the caller is now asking to fork from production.
     await expect(
@@ -100,7 +118,10 @@ describe("createBranch – collision-vs-idempotency contract", () => {
     // rather than throwing – refusing the retry would surprise users
     // upgrading from older substrate revs.
     const existing = fakeBranch("feature-foo", undefined);
-    mockGetBranchByName.mockResolvedValue(existing);
+    setupBranchMock({
+      production: fakeBranch("production", undefined),
+      "feature-foo": existing,
+    });
 
     const result = await createBranch({
       instance: "ignored",
