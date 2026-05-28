@@ -10,15 +10,15 @@ import {
   cutExperiment,
 } from "../../scripts/tdd/experiment";
 
-// LIVE gate must include LAKEBASE_TEST_PROJECT_PATH because the live test
-// body REQUIRES it (throws "LAKEBASE_TEST_PROJECT_PATH required for live
-// test" otherwise). Previously the gate accepted E2E+HOST alone, so a run
-// with E2E=1 but no PROJECT_PATH would enable the describe and the test
-// body would throw – surfacing as a hard FAIL instead of a clean SKIP.
+// LIVE gate uses LAKEBASE_TEST_INSTANCE (the bare project id; substrate's
+// `instance: string` parameter shape). Previously the test gated on
+// LAKEBASE_TEST_PROJECT_PATH and fed that into `instance`, double-prefixing
+// to "projects/projects/<id>" once branch-utils' projectPath() helper ran.
+// Bare instance is the right consumer shape (see scripts/lakebase/branch-utils.ts).
 const LIVE =
   process.env.LAKEBASE_TEST_E2E === "1" &&
   !!process.env.DATABRICKS_HOST &&
-  !!process.env.LAKEBASE_TEST_PROJECT_PATH;
+  !!process.env.LAKEBASE_TEST_INSTANCE;
 
 let tdd: string;
 
@@ -142,17 +142,15 @@ describe("experiment lifecycle (hermetic)", () => {
 
 const liveDescribe = LIVE ? describe : describe.skip;
 
-liveDescribe("experiment lifecycle (live – LAKEBASE_TEST_E2E=1)", () => {
-  const projectPath = process.env.LAKEBASE_TEST_PROJECT_PATH;
-  const profile = process.env.LAKEBASE_TEST_PROFILE || "DEFAULT";
+liveDescribe("experiment lifecycle (live, LAKEBASE_TEST_E2E=1)", () => {
+  const instance = process.env.LAKEBASE_TEST_INSTANCE;
   const parentBranch = process.env.LAKEBASE_TEST_PARENT || "staging";
 
   it("cuts and tears down a real feature branch + on-disk record", async () => {
-    if (!projectPath) throw new Error("LAKEBASE_TEST_PROJECT_PATH required for live test");
+    if (!instance) throw new Error("LAKEBASE_TEST_INSTANCE required for live test");
     const slug = `exp-test-${Date.now()}`;
     const rec = await cutExperiment({
-      instance: projectPath || "test-project",
-      
+      instance,
       tddDir: tdd,
       featureId: "F1",
       experimentSlug: slug,
@@ -165,8 +163,7 @@ liveDescribe("experiment lifecycle (live – LAKEBASE_TEST_E2E=1)", () => {
     expect(existsSync(join(rec.dir, "timeline.json"))).toBe(true);
     expect(rec.branch_id).toBeTruthy();
     await deleteExperiment({
-      instance: projectPath || "test-project",
-      
+      instance,
       tddDir: tdd,
       featureId: "F1",
       experimentSlug: slug,

@@ -257,9 +257,6 @@ export LAKEBASE_TEST_BRANCH="$BRANCH"
 export LAKEBASE_TEST_PARENT="$PARENT"
 export LAKEBASE_TEST_HOST="$DATABRICKS_HOST"
 export LAKEBASE_TEST_PROFILE="$PROFILE"
-# Resource-path form of the project id; unlocks tdd-experiment-lifecycle's
-# live describe (which uses it as cutExperiment's instance argument).
-export LAKEBASE_TEST_PROJECT_PATH="projects/$PROJECT_ID"
 # Optional fields: only set when the user provides them. Tests have
 # sensible defaults if absent.
 export LAKEBASE_TEST_COMPARISON_BRANCH="${LAKEBASE_TEST_COMPARISON_BRANCH:-$BRANCH}"
