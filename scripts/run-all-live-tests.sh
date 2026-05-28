@@ -45,13 +45,24 @@
 #   --teardown                 After a green run, delete the auto-provisioned project.
 #                              No-op when --project was supplied.
 #   --no-prompt                Skip the grace period entirely (for CI).
+#   --no-github-runner         Skip the FEIP-7138 self-hosted-runner live test
+#                              (default: enabled). Requires GitHub auth on the
+#                              host (gh CLI logged in or GITHUB_TOKEN env).
+#   --no-migrate-tools         Skip auto-provisioning alembic/flyway tools and
+#                              leave migrate-live + migrate-live-flyway gated
+#                              on whatever is already on PATH (default: enabled).
 #   --help                     This help.
 #
-# What is NOT unlocked by this script:
-#   - tests/integration/detect-language-via-self-hosted-runner.test.ts
-#     (needs a self-hosted GitHub Actions runner registered).
-#   - LAKEBASE_TEST_PROJECT_PATH-gated TDD live tests (need a Databricks
-#     workspace path; deferred until the TDD scaffolder lands one).
+# What this script unlocks (every live-gated test in the kit):
+#   - All LAKEBASE_TEST_E2E-gated suites (cut-experiment, paired-branch,
+#     branch-create/delete, branch-utils, branch-endpoint, etc.).
+#   - migrate-live + migrate-live-flyway via auto-provisioned venv + tools.
+#   - tdd-experiment-lifecycle live describe (LAKEBASE_TEST_PROJECT_PATH).
+#   - detect-language-via-self-hosted-runner via --include-github-runner
+#     (LAKEBASE_TEST_E2E_GITHUB=1; pass --no-github-runner to opt out).
+# A clean run reports zero contributor-actionable skips. Skips that remain
+# are pure assertion-shape decisions inside the test files themselves
+# (e.g. kit-config defaults vs env overrides).
 #
 # What this script gates on (substrate convention):
 #   LAKEBASE_TEST_NO_TEARDOWN=1 is set by default. Failed runs leave the
@@ -79,6 +90,8 @@ DATABASE=""
 FEATURE_TTL_DAYS=""
 TEARDOWN_ON_GREEN=0
 NO_PROMPT=0
+INCLUDE_GITHUB_RUNNER=1
+INCLUDE_MIGRATE_TOOLS=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -92,6 +105,8 @@ while [[ $# -gt 0 ]]; do
     --feature-ttl-days)   FEATURE_TTL_DAYS="$2"; shift 2 ;;
     --teardown)           TEARDOWN_ON_GREEN=1; shift ;;
     --no-prompt)          NO_PROMPT=1; shift ;;
+    --no-github-runner)   INCLUDE_GITHUB_RUNNER=0; shift ;;
+    --no-migrate-tools)   INCLUDE_MIGRATE_TOOLS=0; shift ;;
     --help|-h)
       # `sed '$d'` drops the trailing `set -euo pipefail` line that closes
       # the range. Cross-platform: `head -n -1` is GNU-only (BSD head on
@@ -242,6 +257,9 @@ export LAKEBASE_TEST_BRANCH="$BRANCH"
 export LAKEBASE_TEST_PARENT="$PARENT"
 export LAKEBASE_TEST_HOST="$DATABRICKS_HOST"
 export LAKEBASE_TEST_PROFILE="$PROFILE"
+# Resource-path form of the project id; unlocks tdd-experiment-lifecycle's
+# live describe (which uses it as cutExperiment's instance argument).
+export LAKEBASE_TEST_PROJECT_PATH="projects/$PROJECT_ID"
 # Optional fields: only set when the user provides them. Tests have
 # sensible defaults if absent.
 export LAKEBASE_TEST_COMPARISON_BRANCH="${LAKEBASE_TEST_COMPARISON_BRANCH:-$BRANCH}"
@@ -278,6 +296,78 @@ green "  LAKEBASE_TEST_INSTANCE=$LAKEBASE_TEST_INSTANCE"
 green "  LAKEBASE_TEST_BRANCH=$LAKEBASE_TEST_BRANCH  LAKEBASE_TEST_PARENT=$LAKEBASE_TEST_PARENT"
 green "  LAKEBASE_TEST_E2E=1  LAKEBASE_TEST_INITIALIZR=1  PEER_DEP_INTEGRATION=1"
 green "  LAKEBASE_TEST_NO_TEARDOWN=1  (per substrate convention)"
+
+# Provision the per-suite tooling that migrate-live + migrate-live-flyway
+# gate on (alembic, sqlalchemy, psycopg2-binary; flyway + java). Both
+# blocks are idempotent: a cached venv / Flyway tree skips download.
+# Pass --no-migrate-tools to leave PATH untouched (e.g. on machines with
+# the tools pre-installed via brew / apt).
+FLYWAY_VERSION="10.20.1"
+if [[ "$INCLUDE_MIGRATE_TOOLS" -eq 1 ]]; then
+  VENV="$REPO_ROOT/.venv-live-tests"
+  if [[ ! -x "$VENV/bin/alembic" ]]; then
+    blue ""
+    blue "==> Provisioning Python venv at $VENV (one-time setup, alembic + deps)"
+    python3 -m venv "$VENV"
+    "$VENV/bin/pip" install --quiet --upgrade pip
+    "$VENV/bin/pip" install --quiet alembic sqlalchemy psycopg2-binary
+  fi
+  green "  using alembic from $VENV/bin/alembic"
+  export PATH="$VENV/bin:$PATH"
+
+  FLYWAY_HOME="$REPO_ROOT/.tools-live-tests/flyway-$FLYWAY_VERSION"
+  if command -v flyway >/dev/null 2>&1; then
+    green "  using flyway from $(command -v flyway) (pre-installed)"
+  elif [[ -x "$FLYWAY_HOME/flyway" ]]; then
+    green "  using flyway from $FLYWAY_HOME/flyway (cached)"
+    export PATH="$FLYWAY_HOME:$PATH"
+  else
+    blue ""
+    blue "==> Provisioning Flyway CLI $FLYWAY_VERSION at $FLYWAY_HOME (one-time setup)"
+    mkdir -p "$REPO_ROOT/.tools-live-tests"
+    ZIP="$REPO_ROOT/.tools-live-tests/flyway-commandline-$FLYWAY_VERSION.zip"
+    MAVEN_CENTRAL="${LAKEBASE_KIT_REGISTRY_MAVEN_CENTRAL:-https://repo1.maven.org/maven2}"
+    URL="${MAVEN_CENTRAL%/}/org/flywaydb/flyway-commandline/$FLYWAY_VERSION/flyway-commandline-$FLYWAY_VERSION.zip"
+    if [[ ! -f "$ZIP" ]]; then
+      if ! curl --fail --silent --show-error --location -o "$ZIP" "$URL"; then
+        red ""
+        red "  Could not download Flyway from $URL"
+        yellow "  Workarounds: install Flyway via brew/apt and re-run, or pass --no-migrate-tools."
+        exit 1
+      fi
+    fi
+    unzip -q -d "$REPO_ROOT/.tools-live-tests" "$ZIP"
+    rm -f "$ZIP"
+    if [[ ! -x "$FLYWAY_HOME/flyway" ]]; then
+      red "  flyway extracted but $FLYWAY_HOME/flyway is missing or not executable"
+      exit 1
+    fi
+    green "  using flyway from $FLYWAY_HOME/flyway"
+    export PATH="$FLYWAY_HOME:$PATH"
+  fi
+fi
+
+# FEIP-7138 self-hosted-runner suite: register a real runner against a
+# fresh private repo and prove npx --package=github:... routing works
+# end-to-end. Defaults to enabled (per the "no exceptions" policy) and
+# opts out via --no-github-runner. Requires GitHub auth on the host
+# (gh CLI logged in OR GITHUB_TOKEN env). The test creates a real repo
+# scoped to the contributor's login; on assertion FAIL the repo and
+# runner are preserved per the kit's never-teardown-on-failure rule.
+if [[ "$INCLUDE_GITHUB_RUNNER" -eq 1 ]]; then
+  export LAKEBASE_TEST_E2E_GITHUB=1
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    green "  LAKEBASE_TEST_E2E_GITHUB=1  (gh CLI auth detected)"
+  elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    green "  LAKEBASE_TEST_E2E_GITHUB=1  (GITHUB_TOKEN env detected)"
+  else
+    yellow "  LAKEBASE_TEST_E2E_GITHUB=1  (no gh auth or GITHUB_TOKEN visible)"
+    yellow "  The suite will error fast if auth cannot be resolved at run-time."
+    yellow "  To opt out, re-run with --no-github-runner."
+  fi
+else
+  yellow "  --no-github-runner: skipping FEIP-7138 self-hosted-runner suite"
+fi
 
 # Build dist so the integration tests import the latest compiled substrate.
 blue ""
