@@ -25,6 +25,7 @@ import {
   isTtlTooLongError,
   projectPath,
 } from "./branch-utils.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 
 const execFileP = promisify(execFile);
 
@@ -222,8 +223,8 @@ export async function createBranch(args: CreateBranchArgs): Promise<LakebaseBran
     instance: args.instance,
     host: args.host,
     branch: sanitized,
-    timeoutMs: args.readyTimeoutMs ?? 120_000,
-    pollIntervalMs: args.pollIntervalMs ?? 5_000,
+    timeoutMs: args.readyTimeoutMs ?? KIT_TIMEOUTS.readyWait,
+    pollIntervalMs: args.pollIntervalMs ?? KIT_TIMEOUTS.readyPoll,
   });
 }
 
@@ -235,8 +236,8 @@ export interface WaitForBranchReadyArgs extends BranchLookupOpts {
 
 /** Poll until the branch reaches READY state. Throws on timeout. */
 export async function waitForBranchReady(args: WaitForBranchReadyArgs): Promise<LakebaseBranchInfo> {
-  const timeoutMs = args.timeoutMs ?? 120_000;
-  const interval = args.pollIntervalMs ?? 5_000;
+  const timeoutMs = args.timeoutMs ?? KIT_TIMEOUTS.readyWait;
+  const interval = args.pollIntervalMs ?? KIT_TIMEOUTS.readyPoll;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const branch = await getBranchByName(args.branch, { instance: args.instance, host: args.host });
@@ -264,7 +265,7 @@ async function dbcli(args: string[], host?: string): Promise<string> {
     ? ({ ...process.env, DATABRICKS_HOST: trimmedHost } as NodeJS.ProcessEnv)
     : process.env;
   try {
-    const { stdout } = await execFileP("databricks", args, { env, timeout: 60_000 });
+    const { stdout } = await execFileP("databricks", args, { env, timeout: KIT_TIMEOUTS.cliCreateBranch });
     return stdout.toString();
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string | Buffer };

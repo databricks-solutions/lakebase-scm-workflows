@@ -9,6 +9,7 @@ import {
   BranchLookupOpts,
   resolveBranchPath,
 } from "./branch-utils.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 
 const execFileP = promisify(execFile);
 
@@ -39,7 +40,7 @@ async function dbcli(args: string[], host?: string): Promise<string> {
     ? ({ ...process.env, DATABRICKS_HOST: trimmedHost } as NodeJS.ProcessEnv)
     : process.env;
   try {
-    const { stdout } = await execFileP("databricks", args, { env, timeout: 30_000 });
+    const { stdout } = await execFileP("databricks", args, { env, timeout: KIT_TIMEOUTS.cliDefault });
     return stdout.toString();
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string | Buffer };

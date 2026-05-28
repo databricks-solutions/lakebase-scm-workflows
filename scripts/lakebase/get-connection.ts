@@ -18,6 +18,7 @@ import { createLakebasePool } from "@databricks/lakebase";
 import type { Pool } from "pg";
 import { resolveBranchId } from "./branch-utils.js";
 import { DEFAULT_DATABASE, DEFAULT_ENDPOINT, POSTGRES_PORT } from "./constants.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 // AppKit / @databricks/lakebase re-exports a WorkspaceClient type that
 // matches what createLakebasePool expects. We accept `unknown` at the API
 // boundary so this module doesn't have to take a hard SDK dep just to type
@@ -184,7 +185,7 @@ function dbcli(args: string[]): string {
     return execFileSync("databricks", args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      timeout: 30_000,
+      timeout: KIT_TIMEOUTS.cliDefault,
     });
   } catch (err) {
     const e = err as NodeJS.ErrnoException & { stderr?: string | Buffer };

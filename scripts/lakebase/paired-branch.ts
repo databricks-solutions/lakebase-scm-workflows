@@ -31,6 +31,7 @@ import { mintCredential } from "./get-connection.js";
 import { sanitizeBranchName } from "../util/sanitize-branch-name.js";
 import { updateEnvConnection } from "./env-file.js";
 import { DEFAULT_DATABASE, POSTGRES_PORT } from "./constants.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 
 // ─── Internal git helpers ───────────────────────────────────────
 
@@ -39,7 +40,7 @@ function gitCurrentBranch(cwd: string): string {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 5_000,
+    timeout: KIT_TIMEOUTS.gitDefault,
   }).trim();
 }
 
@@ -48,7 +49,7 @@ function gitHasLocalBranch(cwd: string, branch: string): boolean {
     execFileSync("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], {
       cwd,
       stdio: "ignore",
-      timeout: 5_000,
+      timeout: KIT_TIMEOUTS.gitDefault,
     });
     return true;
   } catch {
@@ -60,7 +61,7 @@ function gitCheckoutNewBranch(cwd: string, branch: string): void {
   execFileSync("git", ["checkout", "-b", branch], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 10_000,
+    timeout: KIT_TIMEOUTS.gitCheckout,
   });
 }
 
@@ -68,7 +69,7 @@ function gitCheckoutExistingBranch(cwd: string, branch: string): void {
   execFileSync("git", ["checkout", branch], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 10_000,
+    timeout: KIT_TIMEOUTS.gitCheckout,
   });
 }
 
@@ -76,7 +77,7 @@ function gitDeleteLocalBranch(cwd: string, branch: string, force = true): void {
   execFileSync("git", ["branch", force ? "-D" : "-d", branch], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 5_000,
+    timeout: KIT_TIMEOUTS.gitDefault,
   });
 }
 
@@ -85,7 +86,7 @@ function gitHasRemoteBranch(cwd: string, remote: string, branch: string): boolea
     const out = execFileSync(
       "git",
       ["ls-remote", "--exit-code", "--heads", remote, branch],
-      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15_000 }
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: KIT_TIMEOUTS.gitNetwork }
     );
     return out.trim().length > 0;
   } catch {
@@ -97,7 +98,7 @@ function gitDeleteRemoteBranch(cwd: string, remote: string, branch: string): voi
   execFileSync("git", ["push", remote, "--delete", branch], {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 30_000,
+    timeout: KIT_TIMEOUTS.gitPush,
   });
 }
 
@@ -183,7 +184,7 @@ export async function createPairedBranch(
       ready = await waitForBranchReady({
         instance: args.instance,
         branch: sanitized,
-        timeoutMs: args.readyTimeoutMs ?? 120_000,
+        timeoutMs: args.readyTimeoutMs ?? KIT_TIMEOUTS.readyWait,
       });
     } catch (err) {
       warnings.push(
@@ -578,7 +579,7 @@ export async function checkoutPaired(args: CheckoutPairedArgs): Promise<Checkout
             await waitForBranchReady({
               instance,
               branch: branchId,
-              timeoutMs: args.readyTimeoutMs ?? 120_000,
+              timeoutMs: args.readyTimeoutMs ?? KIT_TIMEOUTS.readyWait,
             });
           } catch (err) {
             warnings.push(
@@ -601,7 +602,7 @@ export async function checkoutPaired(args: CheckoutPairedArgs): Promise<Checkout
   const ep = await ensureEndpoint({
     instance,
     branch: lakebaseBranch,
-    timeoutMs: args.readyTimeoutMs ?? 120_000,
+    timeoutMs: args.readyTimeoutMs ?? KIT_TIMEOUTS.readyWait,
   });
   const { token, email } = await mintCredential(endpointPath(instance, lakebaseBranch));
   const dsn = buildDsn(ep.host, database, email, token);

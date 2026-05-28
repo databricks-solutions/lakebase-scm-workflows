@@ -21,6 +21,7 @@ import * as tar from "tar";
 import findJavaHome from "find-java-home";
 import treeKill from "tree-kill";
 import { delay } from "../util/delay.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 import {
   createRegistrationToken,
   getRunnerIdByName,
@@ -137,7 +138,7 @@ export function stopRunner(projectName: string): void {
     // Legacy fallback for runners whose pid we don't know.
     try {
       cp.execSync(`pkill -9 -f "${dir.replace(/\//g, "\\/")}.*Runner" 2>/dev/null || true`, {
-        timeout: 5000,
+        timeout: KIT_TIMEOUTS.cmdShort,
       });
     } catch {
       /* ignore */
@@ -272,7 +273,7 @@ export async function setupRunner(args: SetupRunnerArgs): Promise<RunnerInfo> {
     const regToken = await createRegistrationToken(args.fullRepoName);
     cp.execSync(
       `./config.sh --url "https://github.com/${args.fullRepoName}" --token "${regToken}" --name "${name}" --labels self-hosted --unattended --replace`,
-      { cwd: dir, timeout: 60_000 }
+      { cwd: dir, timeout: KIT_TIMEOUTS.cliLong }
     );
   }
 

@@ -14,6 +14,7 @@
 import { execFileSync } from "node:child_process";
 import type { Pool } from "pg";
 import { getConnection } from "./get-connection.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 
 export interface SchemaColumn {
   name: string;
@@ -298,6 +299,6 @@ function dbcli(args: string[]): string {
   return execFileSync("databricks", args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    timeout: 30_000,
+    timeout: KIT_TIMEOUTS.cliDefault,
   });
 }

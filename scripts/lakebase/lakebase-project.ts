@@ -6,6 +6,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { branchNameFromResourcePath, type BranchName } from "./branch-id.js";
+import { KIT_TIMEOUTS } from "./kit-config.js";
 
 const execFileP = promisify(execFile);
 
@@ -178,7 +179,7 @@ async function dbcli(args: string[], host?: string): Promise<string> {
   try {
     const { stdout } = await execFileP("databricks", args, {
       env: env as NodeJS.ProcessEnv,
-      timeout: 30_000,
+      timeout: KIT_TIMEOUTS.cliDefault,
     });
     return stdout.toString();
   } catch (err) {
