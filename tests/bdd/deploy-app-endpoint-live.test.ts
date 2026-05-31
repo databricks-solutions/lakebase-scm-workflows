@@ -22,11 +22,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateAppYaml } from "../../scripts/lakebase/deploy-app-yaml";
 import {
+  deleteAppEndpoint,
   ensureAppEndpoint,
   getAppEndpoint,
 } from "../../scripts/lakebase/deploy-app-endpoint";
 import { DeployTarget } from "../../scripts/lakebase/deploy-targets";
-import { exec } from "../../scripts/util/exec";
 
 // /Workspace/Users/ is platform-protected; only existing per-user homes
 // are writable. The live test must put its source under the
@@ -151,18 +151,21 @@ afterAll(async () => {
   }
   console.log("");
   console.log(`[TEARDOWN] deploy-app-endpoint passed; deleting app ${appName} + workspace files.`);
+  // Exercise slice 4's deleteAppEndpoint primitive in the same flow:
+  // the test acts as the live-driver verification for the paired
+  // teardown too. Idempotent ignoreMissing default lets re-runs pass
+  // without throwing if the prior delete already landed.
   try {
-    await exec(`databricks apps delete "${appName}" --profile "${PROFILE}"`, { timeout: 60_000 });
+    const result = await deleteAppEndpoint({
+      appName,
+      profile: PROFILE!,
+      workspacePath,
+      timeoutMs: 120_000,
+    });
+    if (!result.appDeleted) console.log(`  [teardown] app not found (already deleted?)`);
+    if (!result.workspaceDeleted) console.log(`  [teardown] workspace path not found (already deleted?)`);
   } catch (err) {
-    console.log(`  [teardown] apps delete failed: ${(err as Error).message}`);
-  }
-  try {
-    await exec(
-      `databricks workspace delete "${workspacePath}" --recursive --profile "${PROFILE}"`,
-      { timeout: 60_000 },
-    );
-  } catch (err) {
-    console.log(`  [teardown] workspace delete failed: ${(err as Error).message}`);
+    console.log(`  [teardown] deleteAppEndpoint failed: ${(err as Error).message}`);
   }
   if (projectDir) rmSync(projectDir, { recursive: true, force: true });
 });

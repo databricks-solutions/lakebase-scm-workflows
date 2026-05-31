@@ -66,6 +66,36 @@ export interface EnsureAppEndpointResult {
   deployStderr: string;
 }
 
+export interface DeleteAppEndpointArgs {
+  /** Databricks CLI profile. */
+  profile: string;
+  /** App name to delete. */
+  appName: string;
+  /** Optional workspace path to delete recursively after the app is
+   *  removed. When the app is paired with a Lakebase branch, the
+   *  caller usually wants the uploaded source gone too. */
+  workspacePath?: string;
+  /** When true (default), `RESOURCE_DOES_NOT_EXIST` from the apps delete
+   *  call resolves to `appDeleted: false, found: false` instead of
+   *  rejecting. Idempotency contract: callers re-running the teardown
+   *  on an already-deleted app see no error. */
+  ignoreMissing?: boolean;
+  /** Override the per-call timeout. Apps delete returns immediately
+   *  (the platform's 20-min DELETING cool-down before the name can be
+   *  reused is separate). Default: KIT_TIMEOUTS.cliDefault. */
+  timeoutMs?: number;
+}
+
+export interface DeleteAppEndpointResult {
+  /** True iff `apps delete` returned successfully. */
+  appDeleted: boolean;
+  /** True iff the workspace path was deleted. Always false when
+   *  `workspacePath` was not provided. */
+  workspaceDeleted: boolean;
+  /** True iff the app was present at the start of the call. */
+  found: boolean;
+}
+
 export interface GetAppEndpointArgs {
   profile: string;
   appName: string;
@@ -102,12 +132,79 @@ export async function getAppEndpoint(args: GetAppEndpointArgs): Promise<GetAppEn
   } catch (err) {
     const msg = (err as Error).message;
     if (
-      /RESOURCE_DOES_NOT_EXIST|does not exist|not found|404|status: 404/i.test(msg)
+      /RESOURCE_DOES_NOT_EXIST|does not exist or is deleted|App .* does not exist|status:? 404\b/i.test(msg)
     ) {
       return { exists: false, url: undefined, info: undefined };
     }
     throw err;
   }
+}
+
+/**
+ * Tear down an app endpoint and (optionally) its uploaded workspace
+ * files. Slice 4 of FEIP-7130. Pairs with `deletePairedBranch`
+ * (scripts/lakebase/paired-branch.ts): when the Lakebase branch is
+ * removed, the matching app endpoint should be removed too.
+ *
+ * Order:
+ *   1. apps delete <name>           (idempotent when ignoreMissing=true)
+ *   2. workspace delete <wsPath> --recursive   (only when workspacePath set)
+ *
+ * The app's name enters a 20-minute DELETING cool-down on the platform
+ * before it can be reused; that constraint is OUTSIDE this primitive's
+ * scope. Callers that need a "delete then recreate same name" workflow
+ * should pick a different app_name or wait the cool-down.
+ *
+ * Promise rejects on infra failures (CLI not on PATH, timeout). Missing
+ * app resolves to {found:false, appDeleted:false} when ignoreMissing
+ * (the default); set ignoreMissing=false to throw instead.
+ */
+export async function deleteAppEndpoint(args: DeleteAppEndpointArgs): Promise<DeleteAppEndpointResult> {
+  const ignoreMissing = args.ignoreMissing !== false;
+  const timeoutMs = args.timeoutMs ?? KIT_TIMEOUTS.cliDefault;
+  let appDeleted = false;
+  let workspaceDeleted = false;
+  let found = false;
+
+  try {
+    await exec(
+      `databricks apps delete "${escapeShellArg(args.appName)}" --profile "${escapeShellArg(args.profile)}"`,
+      { timeout: timeoutMs }
+    );
+    appDeleted = true;
+    found = true;
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (
+      ignoreMissing &&
+      /RESOURCE_DOES_NOT_EXIST|does not exist or is deleted|App .* does not exist|status:? 404\b/i.test(msg)
+    ) {
+      // Idempotent: the app is already gone. Continue with workspace
+      // cleanup if asked.
+      found = false;
+    } else {
+      throw err;
+    }
+  }
+
+  if (args.workspacePath) {
+    try {
+      await exec(
+        `databricks workspace delete "${escapeShellArg(args.workspacePath)}" --recursive --profile "${escapeShellArg(args.profile)}"`,
+        { timeout: timeoutMs }
+      );
+      workspaceDeleted = true;
+    } catch (err) {
+      const msg = (err as Error).message;
+      // Idempotent: workspace path may already be gone. Other errors
+      // (e.g. permission) bubble up so callers can diagnose.
+      if (!/RESOURCE_DOES_NOT_EXIST|does not exist or is deleted|App .* does not exist|status:? 404\b/i.test(msg)) {
+        throw err;
+      }
+    }
+  }
+
+  return { appDeleted, workspaceDeleted, found };
 }
 
 /**
