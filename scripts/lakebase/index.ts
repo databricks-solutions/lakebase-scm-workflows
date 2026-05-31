@@ -11,6 +11,7 @@ export * from "./convention-branches.js";
 export * from "./cut-backup.js";
 export * from "./deploy-app-endpoint.js";
 export * from "./deploy-app-yaml.js";
+export * from "./deploy-credentials.js";
 export * from "./deploy-targets.js";
 export * from "./deploy-validate.js";
 export * from "./deploy-workspace-upload.js";

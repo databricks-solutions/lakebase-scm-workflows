@@ -26,6 +26,7 @@ import {
   ensureAppEndpoint,
   getAppEndpoint,
 } from "../../scripts/lakebase/deploy-app-endpoint";
+import { propagateCredentials } from "../../scripts/lakebase/deploy-credentials";
 import { DeployTarget } from "../../scripts/lakebase/deploy-targets";
 
 // /Workspace/Users/ is platform-protected; only existing per-user homes
@@ -204,6 +205,26 @@ describe.skipIf(!RUN_LIVE)(
       const lookup = await getAppEndpoint({ appName, profile: PROFILE! });
       expect(lookup.exists).toBe(true);
       expect(lookup.url).toBe(result.url);
+
+      // Slice 5 verification: propagate the app SP's permission on the
+      // Lakebase project so the deployed app can connect at runtime.
+      // The slice 5 primitive runs as a post-deploy step (the SP only
+      // surfaces after the app is ACTIVE).
+      const target: DeployTarget = {
+        workspace_profile: PROFILE!,
+        workspace_path: workspacePath,
+        app_name: appName,
+        lakebase_project: INSTANCE!,
+        lakebase_branch: BRANCH!,
+      };
+      const creds = await propagateCredentials({
+        target,
+        profile: PROFILE!,
+        appName,
+        timeoutMs: 60_000,
+      });
+      expect(creds.servicePrincipalClientId).toBeTruthy();
+      expect(creds.lakebaseGranted).toBe(true);
 
       allPassed = true;
     }, 2_700_000); // 45-min outer wall-clock budget (create 25 + deploy 15 + slack)
