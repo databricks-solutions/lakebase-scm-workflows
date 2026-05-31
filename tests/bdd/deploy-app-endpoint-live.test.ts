@@ -1,9 +1,9 @@
 // Live end-to-end test for FEIP-7130 slice 3's ensureAppEndpoint.
 //
-// Scaffolds a minimal Node.js HTTP server, generates app.yaml +
-// databricks.yml via slice 2's primitives, calls ensureAppEndpoint to
-// actually deploy the app to the workspace, asserts the URL is returned,
-// then deletes the app via `databricks apps delete`.
+// Scaffolds a minimal Node.js HTTP server, generates app.yaml via
+// slice 2's generateAppYaml, calls ensureAppEndpoint to actually
+// upload + create + deploy the app to the workspace, asserts the URL
+// is returned, then deletes the app via `databricks apps delete`.
 //
 // Real Databricks resources are created. The app endpoint stays
 // distinct from the orchestrator-level Lakebase project so the
@@ -21,7 +21,6 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateAppYaml } from "../../scripts/lakebase/deploy-app-yaml";
-import { generateBundleYaml } from "../../scripts/lakebase/deploy-bundle-yaml";
 import {
   ensureAppEndpoint,
   getAppEndpoint,
@@ -55,15 +54,18 @@ function buildAppName(): string {
 
 let projectDir: string;
 let appName: string;
+let workspacePath: string;
 let allPassed = false;
 
 beforeAll(() => {
   if (!RUN_LIVE) return;
   appName = buildAppName();
+  // Per-app workspace path under the authenticated user's home dir.
+  // The live test uses a deterministic path so cleanup-on-fail recovery
+  // commands work even if the test process is killed mid-run.
+  workspacePath = `/Workspace/Users/integration-test/${appName}`;
   projectDir = mkdtempSync(join(tmpdir(), "deploy-endpoint-live-"));
 
-  // Minimal Node.js HTTP server. The Databricks Apps platform sets
-  // DATABRICKS_APP_PORT; we bind to it and respond with a static body.
   writeFileSync(
     join(projectDir, "server.js"),
     `const http = require("http");
@@ -96,18 +98,19 @@ http.createServer((req, res) => {
     ) + "\n",
   );
 
-  // Generate the canonical app.yaml + databricks.yml via slice 2's
-  // primitives. The deploy will pick them up.
+  // Generate the canonical app.yaml via slice 2's generator. databricks.yml
+  // is intentionally absent: per ADR-0002 amendment, Lakebase apps use the
+  // per-step deploy pattern (no bundle config), since the bundle's
+  // `database:` resource only references Database Instances, not Lakebase
+  // Postgres Projects.
   const target: DeployTarget = {
     workspace_profile: PROFILE!,
-    workspace_path: `/Workspace/Users/integration-test/${appName}`,
+    workspace_path: workspacePath,
     app_name: appName,
     lakebase_project: INSTANCE!,
     lakebase_branch: BRANCH!,
   };
-
   writeFileSync(join(projectDir, "app.yaml"), generateAppYaml(target));
-  writeFileSync(join(projectDir, "databricks.yml"), generateBundleYaml(target, appName));
 });
 
 afterAll(async () => {
@@ -116,20 +119,28 @@ afterAll(async () => {
     console.log("");
     console.log("[LEAVE-INTACT] deploy-app-endpoint failed; preserving app for inspection.");
     console.log(`         app:     ${appName}`);
+    console.log(`         wsPath:  ${workspacePath}`);
     console.log("         To clean up manually:");
     console.log(`           databricks apps delete "${appName}" --profile "${PROFILE}"`);
+    console.log(`           databricks workspace delete "${workspacePath}" --recursive --profile "${PROFILE}"`);
     console.log("");
     if (projectDir) rmSync(projectDir, { recursive: true, force: true });
     return;
   }
   console.log("");
-  console.log(`[TEARDOWN] deploy-app-endpoint passed; deleting app ${appName}.`);
+  console.log(`[TEARDOWN] deploy-app-endpoint passed; deleting app ${appName} + workspace files.`);
   try {
-    await exec(`databricks apps delete "${appName}" --profile "${PROFILE}"`, {
-      timeout: 60_000,
-    });
+    await exec(`databricks apps delete "${appName}" --profile "${PROFILE}"`, { timeout: 60_000 });
   } catch (err) {
     console.log(`  [teardown] apps delete failed: ${(err as Error).message}`);
+  }
+  try {
+    await exec(
+      `databricks workspace delete "${workspacePath}" --recursive --profile "${PROFILE}"`,
+      { timeout: 60_000 },
+    );
+  } catch (err) {
+    console.log(`  [teardown] workspace delete failed: ${(err as Error).message}`);
   }
   if (projectDir) rmSync(projectDir, { recursive: true, force: true });
 });
@@ -137,26 +148,33 @@ afterAll(async () => {
 describe.skipIf(!RUN_LIVE)(
   "ensureAppEndpoint end-to-end (live, FEIP-7130 slice 3)",
   () => {
-    it("deploys the generated bundle, returns a URL, app is reachable via apps get", async () => {
+    it("uploads, creates, deploys, returns a URL, app is reachable via apps get", async () => {
       const result = await ensureAppEndpoint({
         workspaceRoot: projectDir,
+        workspacePath,
         profile: PROFILE!,
         appName,
-        timeoutMs: 900_000, // 15-min budget; cold-start can take long
+        deployTimeoutMs: 900_000, // 15-min budget; cold-start can take long
       });
 
       if (!result.ok) {
         console.log("[deploy] stdout:\n" + result.deployStdout);
         console.log("[deploy] stderr:\n" + result.deployStderr);
+        if (result.upload.errors.length > 0) {
+          console.log("[upload] errors:", JSON.stringify(result.upload.errors, null, 2));
+        }
       }
+
+      expect(result.upload.errors).toEqual([]);
+      expect(result.upload.filesUploaded).toBeGreaterThan(0);
+      expect(result.created).toBe(true);
       expect(result.ok).toBe(true);
       expect(result.exitCode).toBe(0);
       expect(result.url).toBeTruthy();
       expect(result.url!.startsWith("https://")).toBe(true);
 
       // Independent sanity check: a follow-up getAppEndpoint sees the
-      // same app + URL. Catches the (unlikely) case where ensure
-      // reports success but the app didn't actually land.
+      // same app + URL.
       const lookup = await getAppEndpoint({ appName, profile: PROFILE! });
       expect(lookup.exists).toBe(true);
       expect(lookup.url).toBe(result.url);

@@ -54,15 +54,18 @@ describe("ensureAppEndpoint: infra-error contract", () => {
     const dir = mkdtempSync(join(tmpdir(), "ensure-app-noclip-"));
     try {
       writeFileSync(join(dir, "app.yaml"), "command:\n  - true\n");
-      writeFileSync(join(dir, "databricks.yml"), "bundle:\n  name: x\n");
+      // ensureAppEndpoint's first step is getAppEndpoint (apps get),
+      // which uses exec(). With PATH stripped the exec rejects with
+      // ENOENT and that propagates through ensureAppEndpoint.
       await expect(
         ensureAppEndpoint({
           workspaceRoot: dir,
+          workspacePath: "/Workspace/Users/probe/any",
           profile: "any",
           appName: "any",
-          timeoutMs: 5_000,
+          deployTimeoutMs: 5_000,
         })
-      ).rejects.toThrow(/failed to start|ENOENT/i);
+      ).rejects.toThrow(/failed to start|ENOENT|not found|spawn/i);
     } finally {
       process.env.PATH = origPath;
       rmSync(dir, { recursive: true, force: true });

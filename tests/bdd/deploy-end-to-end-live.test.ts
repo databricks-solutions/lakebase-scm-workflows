@@ -1,23 +1,26 @@
-// End-to-end live test for FEIP-7130 slice 2's three substrate primitives.
+// End-to-end live test for FEIP-7130 slice 2's generateAppYaml +
+// validateApp primitives.
 //
-// Exercises generateAppYaml + generateBundleYaml + validateApp against a
-// real Databricks workspace. The test composes a synthetic DeployTarget
-// (referencing the live Lakebase project the driver exported), writes
-// the generated app.yaml + databricks.yml + a minimal package.json into
-// a tmpdir, then runs `databricks apps validate` against it. Validate's
-// own gate (install + typegen + lint + typecheck + build + tests) covers
-// the build phase end-to-end.
+// Composes the slice 2 primitives against a real Databricks workspace.
+// Generates app.yaml from a synthetic DeployTarget (referencing the
+// live Lakebase project the driver exported), writes it to a tmpdir
+// with a minimal package.json, then runs `databricks apps validate`
+// against the generated output. Validate's own gate (install +
+// typegen + lint + typecheck + build + tests) covers the build phase
+// end-to-end.
+//
+// Per ADR-0002's amendment, Lakebase apps do NOT use bundle config:
+// the bundle's `database:` resource type references Database Instances
+// (older product), not Lakebase Postgres Projects. So this test only
+// generates app.yaml and runs validate; the bundle generator was
+// removed in slice 3's rework.
 //
 // Gate: LAKEBASE_TEST_E2E=1 + DATABRICKS_HOST + LAKEBASE_TEST_PROFILE +
 // LAKEBASE_TEST_INSTANCE + LAKEBASE_TEST_BRANCH. The kit's live driver
 // (scripts/run-all-live-tests.sh) exports all of these.
 //
 // No Databricks resources are created by this test; validate is a
-// dry-run pre-deploy gate that hits only auth + bundle parsing. The
-// Lakebase project referenced in the generated bundle does need to
-// exist on the target workspace (otherwise the generated config still
-// validates locally, but a future `bundle deploy` would fail). The
-// driver guarantees the project exists.
+// dry-run pre-deploy gate that only hits auth + project parsing.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFileSync } from "node:child_process";
@@ -25,7 +28,6 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateAppYaml } from "../../scripts/lakebase/deploy-app-yaml";
-import { generateBundleYaml } from "../../scripts/lakebase/deploy-bundle-yaml";
 import { validateApp } from "../../scripts/lakebase/deploy-validate";
 import { DeployTarget } from "../../scripts/lakebase/deploy-targets";
 
@@ -51,8 +53,6 @@ let projectDir: string;
 beforeAll(() => {
   if (!RUN_LIVE) return;
   projectDir = mkdtempSync(join(tmpdir(), "deploy-e2e-live-"));
-  // Minimal node project: validate's project-type detector requires
-  // package.json. Scripts are no-ops so the test stays fast (~2s).
   writeFileSync(
     join(projectDir, "package.json"),
     JSON.stringify(
@@ -79,7 +79,34 @@ afterAll(() => {
 describe.skipIf(!RUN_LIVE)(
   "deploy slice 2 end-to-end (live, FEIP-7130)",
   () => {
-    it("generated app.yaml + databricks.yml pass `databricks apps validate`", async () => {
+    it("generated app.yaml passes `databricks apps validate`", async () => {
+      const target: DeployTarget = {
+        workspace_profile: PROFILE!,
+        workspace_path: "/Workspace/Users/integration-test/deploy-e2e",
+        app_name: "deploy-e2e-app",
+        lakebase_project: INSTANCE!,
+        lakebase_branch: BRANCH!,
+      };
+
+      writeFileSync(join(projectDir, "app.yaml"), generateAppYaml(target));
+
+      const result = await validateApp({
+        workspaceRoot: projectDir,
+        profile: PROFILE!,
+        timeoutMs: 120_000,
+      });
+
+      if (!result.ok) {
+        console.log("[deploy-e2e] validate stdout:\n" + result.stdout);
+        console.log("[deploy-e2e] validate stderr:\n" + result.stderr);
+      }
+
+      expect(result.ok).toBe(true);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout + result.stderr).toMatch(/validation checks passed/i);
+    }, 180_000);
+
+    it("generated app.yaml references the live Lakebase project + branch in env block", () => {
       const target: DeployTarget = {
         workspace_profile: PROFILE!,
         workspace_path: "/Workspace/Users/integration-test/deploy-e2e",
@@ -89,50 +116,14 @@ describe.skipIf(!RUN_LIVE)(
       };
 
       const appYaml = generateAppYaml(target);
-      const bundleYaml = generateBundleYaml(target, target.app_name);
-      writeFileSync(join(projectDir, "app.yaml"), appYaml);
-      writeFileSync(join(projectDir, "databricks.yml"), bundleYaml);
-
-      // Validate exercises the generated files end-to-end against the
-      // real workspace's auth + bundle parsing.
-      const result = await validateApp({
-        workspaceRoot: projectDir,
-        profile: PROFILE!,
-        timeoutMs: 120_000,
-      });
-
-      if (!result.ok) {
-        // Surface CLI output for debugging; matches the kit's other
-        // live-test failure-reporting pattern.
-        console.log("[deploy-e2e] validate stdout:\n" + result.stdout);
-        console.log("[deploy-e2e] validate stderr:\n" + result.stderr);
-      }
-
-      expect(result.ok).toBe(true);
-      expect(result.exitCode).toBe(0);
-      // Validate's signature success line. If the CLI ever changes the
-      // wording, the test surfaces immediately; the assertion above on
-      // exitCode is the contract, this is the human-readable signal.
-      // The CLI prints to stderr when run without a TTY; check combined.
-      expect(result.stdout + result.stderr).toMatch(/validation checks passed/i);
-    }, 180_000);
-
-    it("generated bundle yaml references the live Lakebase project as instance_name", () => {
-      const target: DeployTarget = {
-        workspace_profile: PROFILE!,
-        workspace_path: "/Workspace/Users/integration-test/deploy-e2e",
-        app_name: "deploy-e2e-app",
-        lakebase_project: INSTANCE!,
-        lakebase_branch: BRANCH!,
-      };
-
-      const bundleYaml = generateBundleYaml(target, target.app_name);
-      // Sanity-check the canonical bundle schema with the LIVE identifiers.
-      // instance_name = Lakebase project (Lakebase API: "instance" = "project").
-      // database_name = the postgres database within the project.
-      expect(bundleYaml).toContain(`instance_name: ${INSTANCE}`);
-      expect(bundleYaml).toContain("database_name: databricks_postgres");
-      expect(bundleYaml).toContain("permission: CAN_CONNECT_AND_CREATE");
+      // LAKEBASE_PROJECT_ID + LAKEBASE_BRANCH_ID emit as hardcoded
+      // env values per the slice 2 generator. The platform-injected
+      // PG* vars use valueFrom: postgres.
+      expect(appYaml).toContain(`LAKEBASE_PROJECT_ID`);
+      expect(appYaml).toContain(`value: "${INSTANCE}"`);
+      expect(appYaml).toContain(`LAKEBASE_BRANCH_ID`);
+      expect(appYaml).toContain(`value: "${BRANCH}"`);
+      expect(appYaml).toContain(`valueFrom: postgres`);
     });
   },
 );

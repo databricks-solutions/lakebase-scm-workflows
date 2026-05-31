@@ -1,51 +1,59 @@
-// Provision a Databricks Apps endpoint for a Lakebase deployment target.
+// Provision a Databricks Apps endpoint for a Lakebase-paired target.
 //
-// Slice 3 of FEIP-7130 (lakebase-apps-deploy). Composes slice 2's
-// generated app.yaml + databricks.yml with `databricks apps deploy -t
-// <bundleTarget>`, the devhub-canonical single-command deployment path
-// per platform-guide.md "Deployment Workflow" (Option A: validates,
-// deploys, and runs in one shot).
-//
-// The platform auto-grants the service principal the permissions
-// declared in databricks.yml's resources block (per slice 2's
-// generateBundleYaml). No manual `permissions set` is needed here.
-//
-// `ensureAppEndpoint` is idempotent: it always invokes `apps deploy`
-// which the platform treats as create-or-update. Callers who want a
-// cheaper existence check can use `getAppEndpoint` first.
+// Slice 3 of FEIP-7130 (lakebase-apps-deploy). Uses the per-step deploy
+// pattern (devhub platform-guide.md "Option B") because Lakebase Postgres
+// Projects are NOT compatible with the bundle config's `database:`
+// resource type (that block references the older Database Instances
+// product). See ADR-0002's amendment for the full finding.
 //
 // Pairs with createPairedBranch (scripts/lakebase/paired-branch.ts):
 // once a Lakebase branch + git branch exist, ensureAppEndpoint provisions
-// the matching app endpoint and returns its URL for callers (FEIP-7094
-// Playwright tests in particular) to write into .env as APP_BASE_URL.
+// the matching app endpoint and returns its URL.
+//
+// The deploy flow (idempotent on re-run):
+//   1. uploadDirectory: per-file workspace import --overwrite
+//   2. apps create (skip if app already exists)
+//   3. apps deploy <name> --source-code-path <workspacePath>
+//   4. apps get <name> --output json (read back the URL)
+//
+// Permissions are NOT granted here. The deployed app's service principal
+// must be granted CAN_CONNECT_AND_CREATE on the Lakebase project
+// separately (slice 5).
 
 import { spawn } from "node:child_process";
 import { exec } from "../util/exec.js";
 import { KIT_TIMEOUTS } from "./kit-config.js";
+import { uploadDirectory, UploadDirectoryResult } from "./deploy-workspace-upload.js";
 
 export interface EnsureAppEndpointArgs {
-  /** Working directory containing app.yaml + databricks.yml. Slice 2's
-   *  generateAppYaml + generateBundleYaml produce these. */
+  /** Local directory with package.json + app.yaml + source files. */
   workspaceRoot: string;
+  /** Databricks Workspace path to upload source to (must be absolute, e.g.
+   *  `/Workspace/Users/me/myapp`). Created if absent. */
+  workspacePath: string;
   /** Databricks CLI profile for auth. */
   profile: string;
-  /** App name as declared in databricks.yml resources block. Used to
-   *  read back the deployed app's URL after deploy. */
+  /** App name (Databricks Apps constraints: <=26 chars, lowercase letters /
+   *  digits / hyphens). */
   appName: string;
-  /** Bundle target name in databricks.yml `targets:` map. Default
-   *  matches generateBundleYaml's default of "default". */
-  bundleTargetName?: string;
-  /** Override the deploy timeout. Apps deploy can take 5-10 minutes
-   *  on cold-start. Default: 600s. */
-  timeoutMs?: number;
+  /** Description set on initial `apps create`. Ignored if the app already
+   *  exists. Default: "Deployed by lakebase-app-dev-kit". */
+  description?: string;
+  /** Override the deploy step timeout. Apps deploy can take 5+ minutes on
+   *  cold-start. Default: 600s. */
+  deployTimeoutMs?: number;
 }
 
 export interface EnsureAppEndpointResult {
-  /** True if `apps deploy` exited 0. */
+  /** True iff `apps deploy` exited 0. */
   ok: boolean;
   /** URL of the deployed app, fetched via `apps get` after deploy.
    *  Undefined if the get call failed (the app may still be deployed). */
   url: string | undefined;
+  /** True if the app was just created (vs already existed). */
+  created: boolean;
+  /** Workspace upload step result. */
+  upload: UploadDirectoryResult;
   /** Process exit code of the deploy command. */
   exitCode: number | null;
   /** Raw stdout from `apps deploy`. */
@@ -55,11 +63,8 @@ export interface EnsureAppEndpointResult {
 }
 
 export interface GetAppEndpointArgs {
-  /** Databricks CLI profile for auth. */
   profile: string;
-  /** App name to look up. */
   appName: string;
-  /** Override the per-call timeout. Default: KIT_TIMEOUTS.cliDefault. */
   timeoutMs?: number;
 }
 
@@ -68,15 +73,14 @@ export interface GetAppEndpointResult {
   exists: boolean;
   /** URL of the app if it exists. */
   url: string | undefined;
-  /** Parsed app info (the JSON `databricks apps get` returns). undefined
-   *  when the app does not exist. */
+  /** Parsed app info (the JSON `databricks apps get` returns). */
   info: Record<string, unknown> | undefined;
 }
 
 /**
  * Look up an existing app endpoint by name. Returns `exists: false`
- * (without throwing) when the app does not exist; throws only on
- * infrastructure failures (CLI missing, auth failure).
+ * (without throwing) when the app does not exist; throws on auth or
+ * other infrastructure failures.
  */
 export async function getAppEndpoint(args: GetAppEndpointArgs): Promise<GetAppEndpointResult> {
   const timeoutMs = args.timeoutMs ?? KIT_TIMEOUTS.cliDefault;
@@ -93,9 +97,6 @@ export async function getAppEndpoint(args: GetAppEndpointArgs): Promise<GetAppEn
     };
   } catch (err) {
     const msg = (err as Error).message;
-    // CLI returns non-zero with "RESOURCE_DOES_NOT_EXIST" or similar
-    // when the app is missing. Treat as a clean negative; any other
-    // error bubbles up.
     if (
       /RESOURCE_DOES_NOT_EXIST|does not exist|not found|404|status: 404/i.test(msg)
     ) {
@@ -106,26 +107,98 @@ export async function getAppEndpoint(args: GetAppEndpointArgs): Promise<GetAppEn
 }
 
 /**
- * Provision (create or update) a Databricks Apps endpoint for the
- * declared bundle target. Runs `databricks apps deploy -t <target>`
- * against `workspaceRoot`, which must already contain app.yaml +
- * databricks.yml from slice 2's generators.
+ * Provision (create or update) a Databricks Apps endpoint via the
+ * per-step pattern: upload source, ensure the app exists, deploy via
+ * the API-direct path. Returns the deployed URL.
  *
- * Returns the deployed app's URL via a follow-up `apps get` call.
+ * Idempotent: re-running against an already-deployed app re-uploads
+ * source + redeploys without recreating the app endpoint.
  *
- * The result's `ok` field is the contract; `deployStdout` / `deployStderr`
- * are for debugging and surfacing in agent / extension UIs. The promise
- * rejects only on infrastructure failures (CLI not on PATH, timeout
- * killing the deploy process).
+ * Promise rejects only on infrastructure failures (CLI not on PATH,
+ * timeout, upload step uncaught). Non-zero deploy exit codes resolve
+ * to `ok: false` so callers compose with `.ok` rather than try/catch.
  */
-export function ensureAppEndpoint(args: EnsureAppEndpointArgs): Promise<EnsureAppEndpointResult> {
-  const target = args.bundleTargetName ?? "default";
-  const timeoutMs = args.timeoutMs ?? 600_000;
+export async function ensureAppEndpoint(args: EnsureAppEndpointArgs): Promise<EnsureAppEndpointResult> {
+  const description = args.description ?? "Deployed by lakebase-app-dev-kit";
+  const deployTimeoutMs = args.deployTimeoutMs ?? 600_000;
+
+  // 1. Determine create-vs-update.
+  const lookup = await getAppEndpoint({ appName: args.appName, profile: args.profile });
+  let created = false;
+  if (!lookup.exists) {
+    await exec(
+      `databricks apps create "${escapeShellArg(args.appName)}" --description "${escapeShellArg(description)}" --no-wait --profile "${escapeShellArg(args.profile)}"`,
+      { timeout: KIT_TIMEOUTS.cliCreateEndpoint }
+    );
+    created = true;
+  }
+
+  // 2. Upload source to the workspace path.
+  const upload = await uploadDirectory({
+    localRoot: args.workspaceRoot,
+    workspacePath: args.workspacePath,
+    profile: args.profile,
+  });
+
+  // 3. API-direct deploy: passing APP_NAME as positional arg switches
+  //    the CLI out of bundle-deploy mode (which would try to read
+  //    databricks.yml and reject Lakebase configs).
+  const { ok, exitCode, stdout, stderr } = await runDeploy({
+    appName: args.appName,
+    workspacePath: args.workspacePath,
+    profile: args.profile,
+    timeoutMs: deployTimeoutMs,
+  });
+
+  // 4. Read back the URL (post-deploy state, separate from create-state).
+  let url: string | undefined;
+  try {
+    const post = await getAppEndpoint({ appName: args.appName, profile: args.profile });
+    url = post.url;
+  } catch {
+    // Non-fatal: keep url undefined, surface the deploy fields so the
+    // caller can still diagnose.
+  }
+
+  return {
+    ok,
+    url,
+    created,
+    upload,
+    exitCode,
+    deployStdout: stdout,
+    deployStderr: stderr,
+  };
+}
+
+// ─── helpers ────────────────────────────────────────────────────
+
+interface DeployResult {
+  ok: boolean;
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+function runDeploy(args: {
+  appName: string;
+  workspacePath: string;
+  profile: string;
+  timeoutMs: number;
+}): Promise<DeployResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "databricks",
-      ["apps", "deploy", "-t", target, "--profile", args.profile],
-      { cwd: args.workspaceRoot }
+      [
+        "apps",
+        "deploy",
+        args.appName,
+        "--source-code-path",
+        args.workspacePath,
+        "--profile",
+        args.profile,
+      ],
+      { cwd: undefined }
     );
     let stdout = "";
     let stderr = "";
@@ -145,48 +218,21 @@ export function ensureAppEndpoint(args: EnsureAppEndpointArgs): Promise<EnsureAp
     child.stderr?.on("data", (chunk) => {
       stderr += chunk.toString();
     });
-
     child.on("error", (err) => {
       finish(() => reject(new Error(`databricks apps deploy failed to start: ${err.message}`)));
     });
-
-    child.on("close", async (code) => {
-      finish(async () => {
-        const ok = code === 0;
-        // Look up URL even on failure: a partial deploy can still
-        // surface a usable endpoint, and the caller benefits from
-        // knowing.
-        let url: string | undefined;
-        try {
-          const lookup = await getAppEndpoint({ appName: args.appName, profile: args.profile });
-          url = lookup.url;
-        } catch {
-          // Non-fatal: keep url undefined, surface deploy fields.
-        }
-        resolve({
-          ok,
-          url,
-          exitCode: code,
-          deployStdout: stdout,
-          deployStderr: stderr,
-        });
-      });
+    child.on("close", (code) => {
+      finish(() => resolve({ ok: code === 0, exitCode: code, stdout, stderr }));
     });
-
     timer = setTimeout(() => {
       finish(() => {
         child.kill("SIGTERM");
-        reject(new Error(`databricks apps deploy timed out after ${timeoutMs}ms`));
+        reject(new Error(`databricks apps deploy timed out after ${args.timeoutMs}ms`));
       });
-    }, timeoutMs);
+    }, args.timeoutMs);
   });
 }
 
-// ─── helpers ────────────────────────────────────────────────────
-
 function escapeShellArg(s: string): string {
-  // Allow the kit's exec helper (which uses /bin/sh -c) to consume the
-  // string safely. We already double-quote the argument; only embedded
-  // double quotes need escaping.
   return s.replace(/"/g, '\\"');
 }
