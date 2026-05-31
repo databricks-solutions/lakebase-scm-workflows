@@ -176,7 +176,8 @@ describe.skipIf(!RUN_LIVE)(
         workspacePath,
         profile: PROFILE!,
         appName,
-        deployTimeoutMs: 900_000, // 15-min budget; cold-start can take long
+        createTimeoutMs: 1_500_000, // 25-min budget for apps create -> ACTIVE
+        deployTimeoutMs: 900_000,   // 15-min budget for apps deploy
       });
 
       if (!result.ok) {
@@ -202,7 +203,7 @@ describe.skipIf(!RUN_LIVE)(
       expect(lookup.url).toBe(result.url);
 
       allPassed = true;
-    }, 1_200_000); // 20-min outer wall-clock budget
+    }, 2_700_000); // 45-min outer wall-clock budget (create 25 + deploy 15 + slack)
   },
 );
 

@@ -39,6 +39,10 @@ export interface EnsureAppEndpointArgs {
   /** Description set on initial `apps create`. Ignored if the app already
    *  exists. Default: "Deployed by lakebase-app-dev-kit". */
   description?: string;
+  /** Override the `apps create` step timeout. The CLI blocks until the
+   *  app reaches ACTIVE state; cold-start can take 5+ minutes. Default:
+   *  1200s (matching the CLI's own --timeout 20m default). */
+  createTimeoutMs?: number;
   /** Override the deploy step timeout. Apps deploy can take 5+ minutes on
    *  cold-start. Default: 600s. */
   deployTimeoutMs?: number;
@@ -120,15 +124,21 @@ export async function getAppEndpoint(args: GetAppEndpointArgs): Promise<GetAppEn
  */
 export async function ensureAppEndpoint(args: EnsureAppEndpointArgs): Promise<EnsureAppEndpointResult> {
   const description = args.description ?? "Deployed by lakebase-app-dev-kit";
+  const createTimeoutMs = args.createTimeoutMs ?? 1_200_000;
   const deployTimeoutMs = args.deployTimeoutMs ?? 600_000;
 
   // 1. Determine create-vs-update.
+  // We DROP --no-wait so the CLI blocks until the app reaches ACTIVE.
+  // `apps deploy` rejects with "not in RUNNING state" otherwise, since
+  // a freshly-created app starts in CREATING and the deploy command
+  // needs the app to be ready. The CLI's own --timeout (default 20m)
+  // bounds the wait; our outer timeout matches.
   const lookup = await getAppEndpoint({ appName: args.appName, profile: args.profile });
   let created = false;
   if (!lookup.exists) {
     await exec(
-      `databricks apps create "${escapeShellArg(args.appName)}" --description "${escapeShellArg(description)}" --no-wait --profile "${escapeShellArg(args.profile)}"`,
-      { timeout: KIT_TIMEOUTS.cliCreateEndpoint }
+      `databricks apps create "${escapeShellArg(args.appName)}" --description "${escapeShellArg(description)}" --profile "${escapeShellArg(args.profile)}"`,
+      { timeout: createTimeoutMs }
     );
     created = true;
   }
