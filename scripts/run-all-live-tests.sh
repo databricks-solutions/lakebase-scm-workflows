@@ -65,9 +65,14 @@
 # (e.g. kit-config defaults vs env overrides).
 #
 # What this script gates on (substrate convention):
-#   LAKEBASE_TEST_NO_TEARDOWN=1 is set by default. Failed runs leave the
-#   project + branches in place. The user must explicitly pass --teardown
-#   to enable post-run cleanup, and even then only on a fully-green run.
+#   LAKEBASE_TEST_NO_TEARDOWN=1 is set by default. The orchestrator-level
+#   Lakebase project (live-all-<ts>) is preserved on a failed run so the
+#   user can inspect; pass --teardown to delete on a fully-green run.
+#   Per-suite ephemera (migrate-7091, migrate-7098 Lakebase projects, the
+#   FEIP-7138 GitHub repo + runner) clean themselves up on green and
+#   preserve on fail. The orchestrator and per-suite teardown rules are
+#   independent; LAKEBASE_TEST_NO_TEARDOWN does NOT block per-suite
+#   cleanup of green tests.
 
 set -euo pipefail
 

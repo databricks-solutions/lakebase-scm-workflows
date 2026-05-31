@@ -16,12 +16,15 @@
 //   7. Asserts the run concluded "success" and the detect-lang step output
 //      is "python".
 //
-// Teardown contract (mirrors the user's standing rule "never teardown on
+// Teardown contract (mirrors the kit's standing rule "never teardown on
 // failure"):
 //   - On assertion PASS: deregister runner + delete repo.
 //   - On assertion FAIL: leave runner + repo intact, print recovery
 //     commands.
-//   - LAKEBASE_TEST_NO_TEARDOWN=1 forces leave-intact regardless.
+// Note: LAKEBASE_TEST_NO_TEARDOWN governs Lakebase-project lifecycle
+// across the orchestrator; it does NOT preserve this test's GitHub
+// ephemera. To preserve runner+repo for inspection, kill the test
+// mid-flight (the assertion never sets allPassed=true).
 //
 // Gating:
 //   LAKEBASE_TEST_E2E_GITHUB=1   must be set; suite skips otherwise.
@@ -46,7 +49,6 @@ import { resolveGitHubToken } from "../../scripts/github/auth.js";
 import { setupRunner, removeRunner } from "../../scripts/lakebase/runner-setup.js";
 
 const E2E = process.env.LAKEBASE_TEST_E2E_GITHUB === "1";
-const NO_TEARDOWN = process.env.LAKEBASE_TEST_NO_TEARDOWN === "1";
 const KIT_VERSION = "v0.3.0-alpha.20";
 
 function timestamp(): string {
@@ -166,9 +168,9 @@ describe.skipIf(!E2E)(
     }, 6 * 60_000);
 
     afterAll(async () => {
-      if (!allPassed || NO_TEARDOWN) {
+      if (!allPassed) {
         console.log("");
-        console.log("[LEAVE-INTACT] Skipping teardown (test failed or NO_TEARDOWN set).");
+        console.log("[LEAVE-INTACT] Skipping teardown (test failed).");
         console.log("         To clean up manually:");
         console.log(`           gh repo delete ${fullRepoName} --yes`);
         console.log(
@@ -177,6 +179,8 @@ describe.skipIf(!E2E)(
         );
         return;
       }
+      console.log("");
+      console.log("[TEARDOWN] Test passed, deregistering runner + deleting repo.");
 
       try {
         await removeRunner({ fullRepoName, projectName });
