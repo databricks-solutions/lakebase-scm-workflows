@@ -28,6 +28,27 @@ import {
 import { DeployTarget } from "../../scripts/lakebase/deploy-targets";
 import { exec } from "../../scripts/util/exec";
 
+// /Workspace/Users/ is platform-protected; only existing per-user homes
+// are writable. The live test must put its source under the
+// authenticated user's home (which exists by default for any user who
+// has signed in). Resolve via `current-user me`.
+function resolveUserHome(profile: string): string {
+  try {
+    const out = execFileSync(
+      "databricks",
+      ["current-user", "me", "--profile", profile, "-o", "json"],
+      { encoding: "utf8", timeout: 30_000 },
+    );
+    const start = out.indexOf("{");
+    const me = JSON.parse(out.slice(start));
+    const userName = typeof me.userName === "string" ? me.userName : "";
+    if (!userName) throw new Error("current-user me returned empty userName");
+    return `/Workspace/Users/${userName}`;
+  } catch (err) {
+    throw new Error(`Could not resolve workspace user home: ${(err as Error).message}`);
+  }
+}
+
 function hasCli(): boolean {
   try {
     execFileSync("databricks", ["--version"], { stdio: "ignore", timeout: 3_000 });
@@ -60,10 +81,11 @@ let allPassed = false;
 beforeAll(() => {
   if (!RUN_LIVE) return;
   appName = buildAppName();
-  // Per-app workspace path under the authenticated user's home dir.
-  // The live test uses a deterministic path so cleanup-on-fail recovery
-  // commands work even if the test process is killed mid-run.
-  workspacePath = `/Workspace/Users/integration-test/${appName}`;
+  // Per-app workspace path under the AUTHENTICATED user's home dir.
+  // /Workspace/Users/ is platform-protected; only existing user homes
+  // are writable. Resolve dynamically so the test works for any
+  // contributor running the live driver.
+  workspacePath = `${resolveUserHome(PROFILE!)}/${appName}`;
   projectDir = mkdtempSync(join(tmpdir(), "deploy-endpoint-live-"));
 
   writeFileSync(
