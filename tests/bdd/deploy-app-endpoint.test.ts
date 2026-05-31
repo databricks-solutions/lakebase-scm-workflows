@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  deleteAppEndpoint,
   ensureAppEndpoint,
   getAppEndpoint,
 } from "../../scripts/lakebase/deploy-app-endpoint";
@@ -86,4 +87,46 @@ describe("getAppEndpoint: infra-error contract", () => {
       })
     ).rejects.toThrow();
   }, 30_000);
+});
+
+describe("deleteAppEndpoint: idempotency on missing app", () => {
+  it.skipIf(!RUN_LIVE)("returns found=false for an app that does not exist (default ignoreMissing)", async () => {
+    const result = await deleteAppEndpoint({
+      appName: `kit-test-nonexistent-${Date.now()}`,
+      profile: PROFILE!,
+      timeoutMs: 30_000,
+    });
+    expect(result.found).toBe(false);
+    expect(result.appDeleted).toBe(false);
+    expect(result.workspaceDeleted).toBe(false);
+  }, 60_000);
+
+  it.skipIf(!RUN_LIVE)("throws on missing app when ignoreMissing=false", async () => {
+    await expect(
+      deleteAppEndpoint({
+        appName: `kit-test-nonexistent-${Date.now()}`,
+        profile: PROFILE!,
+        ignoreMissing: false,
+        timeoutMs: 30_000,
+      })
+    ).rejects.toThrow();
+  }, 60_000);
+});
+
+describe("deleteAppEndpoint: infra-error contract", () => {
+  it("rejects when CLI is missing entirely", async () => {
+    const origPath = process.env.PATH;
+    process.env.PATH = "/nonexistent-bin";
+    try {
+      await expect(
+        deleteAppEndpoint({
+          appName: "any",
+          profile: "any",
+          timeoutMs: 5_000,
+        })
+      ).rejects.toThrow(/ENOENT|spawn|not found|failed to start/i);
+    } finally {
+      process.env.PATH = origPath;
+    }
+  }, 10_000);
 });
