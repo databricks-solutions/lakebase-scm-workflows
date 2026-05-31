@@ -67,7 +67,10 @@ describe("validateApp: hermetic (skip-when-cli-or-profile-missing)", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("validation checks passed");
+    // The CLI prints its progress output (including the success marker)
+    // to stderr when running without a TTY; assert against the combined
+    // stream so the test stays decoupled from that stylistic detail.
+    expect(result.stdout + result.stderr).toContain("validation checks passed");
   }, 90_000);
 
   it.skipIf(!RUN_LIVE)("returns ok=false on a directory with no project markers", async () => {

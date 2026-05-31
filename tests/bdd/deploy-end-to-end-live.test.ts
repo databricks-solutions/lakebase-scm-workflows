@@ -113,7 +113,8 @@ describe.skipIf(!RUN_LIVE)(
       // Validate's signature success line. If the CLI ever changes the
       // wording, the test surfaces immediately; the assertion above on
       // exitCode is the contract, this is the human-readable signal.
-      expect(result.stdout).toMatch(/validation checks passed/i);
+      // The CLI prints to stderr when run without a TTY; check combined.
+      expect(result.stdout + result.stderr).toMatch(/validation checks passed/i);
     }, 180_000);
 
     it("generated bundle yaml references the live Lakebase project + branch", () => {
